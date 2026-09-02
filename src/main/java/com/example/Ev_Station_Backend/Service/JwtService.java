@@ -60,6 +60,14 @@ public class JwtService {
                 .getSubject();
     }
 
+
+    // Extract role from token
+    public String extractRole(String token) {
+
+        return extractAllClaims(token)
+                    .get("role", String.class);
+    }
+
     // Check token expiration
     public boolean isTokenExpired(String token) {
 

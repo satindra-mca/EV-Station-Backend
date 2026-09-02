@@ -47,17 +47,29 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             String email = jwtService.extractEmail(token);
             System.out.println("JWT Email: " + email);
 
+            String role = jwtService.extractRole(token);
+            System.out.println("JWT Role: " + role);
+
             // User already authenticated છે કે નહીં
             if (email != null &&
                     SecurityContextHolder.getContext().getAuthentication() == null) {
 
+                        
+
                 if (!jwtService.isTokenExpired(token)) {
+
+
+                org.springframework.security.core.authority.SimpleGrantedAuthority authority =
+                    new org.springframework.security.core.authority.SimpleGrantedAuthority(
+                            "ROLE_" + role
+                );
+                    
 
                     UsernamePasswordAuthenticationToken authentication =
                             new UsernamePasswordAuthenticationToken(
                                     email,
                                     null,
-                                    java.util.Collections.emptyList()
+                                    java.util.Collections.singletonList(authority)
                             );
 
                     authentication.setDetails(
