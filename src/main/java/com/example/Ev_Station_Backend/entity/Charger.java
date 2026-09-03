@@ -22,6 +22,19 @@ public class Charger {
 
     private Integer noOfConnector;
 
+    /*
+     * Unique source row number from BEE CSV.
+     *
+     * Example:
+     * CSV row 1  -> beeSourceIndex = 1
+     * CSV row 2  -> beeSourceIndex = 2
+     * CSV row 3  -> beeSourceIndex = 3
+     *
+     * This is used to make BEE import idempotent.
+     */
+    @Column(name = "bee_source_index", unique = true)
+    private Long beeSourceIndex;
+
     @ManyToOne
     @JoinColumn(name = "charging_station_id", nullable = false)
     private ChargingStation chargingStation;
