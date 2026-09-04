@@ -3,6 +3,7 @@ package com.example.Ev_Station_Backend.entity;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import java.util.List;
 
 @Entity
 @Table(name = "chargers")
@@ -38,4 +39,7 @@ public class Charger {
     @ManyToOne
     @JoinColumn(name = "charging_station_id", nullable = false)
     private ChargingStation chargingStation;
+
+    @OneToMany(mappedBy = "charger", cascade = CascadeType.ALL)
+    private List<Connector> connectors;
 }
