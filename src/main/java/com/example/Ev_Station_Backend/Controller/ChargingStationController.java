@@ -4,6 +4,9 @@ import com.example.Ev_Station_Backend.dto.ChargingStationRequest;
 import com.example.Ev_Station_Backend.dto.ChargingStationResponse;
 import com.example.Ev_Station_Backend.entity.ChargingStation;
 import com.example.Ev_Station_Backend.Service.ChargingStationService;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Positive;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -74,6 +77,55 @@ public class ChargingStationController {
         return ResponseEntity.ok(convertToResponse(station));
     }
 
+    // Get Nearby Charging Stations
+    @GetMapping("/nearby")
+    public ResponseEntity<List<ChargingStationResponse>> getNearbyStations(
+            @RequestParam
+            @DecimalMin(
+                    value = "-90.0",
+                    message = "Latitude must be between -90 and 90"
+            )
+            @DecimalMax(
+                    value = "90.0",
+                    message = "Latitude must be between -90 and 90"
+            )
+            Double latitude,
+
+            @RequestParam
+            @DecimalMin(
+                    value = "-180.0",
+                    message = "Longitude must be between -180 and 180"
+            )
+            @DecimalMax(
+                    value = "180.0",
+                    message = "Longitude must be between -180 and 180"
+            )
+            Double longitude,
+
+            @RequestParam
+            @Positive(
+                    message = "Radius must be greater than 0"
+            )
+            @DecimalMax(
+                    value = "100.0",
+                    message = "Radius must not exceed 100 km"
+            )
+            Double radius) {
+
+        List<ChargingStation> stations =
+                chargingStationService.getNearbyStations(
+                        latitude,
+                        longitude,
+                        radius
+                );
+
+        List<ChargingStationResponse> response = stations.stream()
+                .map(this::convertToResponse)
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(response);
+    }
+
     // Delete Station
     @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteStation(
@@ -83,7 +135,6 @@ public class ChargingStationController {
 
         return ResponseEntity.noContent().build();
     }
-
 
     // Entity → Response DTO
     private ChargingStationResponse convertToResponse(
@@ -108,3 +159,4 @@ public class ChargingStationController {
         return response;
     }
 }
+

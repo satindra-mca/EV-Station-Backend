@@ -35,4 +35,17 @@ public class ChargingStationService {
     public void deleteStation(Long id) {
         chargingStationRepository.deleteById(id);
     }
+
+    // Get nearby charging stations
+    public List<ChargingStation> getNearbyStations(
+            Double latitude,
+            Double longitude,
+            Double radius) {
+
+        return chargingStationRepository.findNearbyStations(
+                latitude,
+                longitude,
+                radius
+        );
+    }
 }
