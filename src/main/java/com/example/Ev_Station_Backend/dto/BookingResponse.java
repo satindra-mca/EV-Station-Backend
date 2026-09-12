@@ -1,6 +1,7 @@
 package com.example.Ev_Station_Backend.dto;
 
 import com.example.Ev_Station_Backend.Enum.BookingStatus;
+import com.example.Ev_Station_Backend.Enum.PaymentStatus;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -21,9 +22,17 @@ public class BookingResponse {
 
     private LocalDateTime endTime;
 
-    private BigDecimal amount;
+    private BigDecimal estimatedAmount;
+
+    private BigDecimal advanceAmount;
+
+    private BigDecimal finalAmount;
 
     private BookingStatus status;
+
+    private PaymentStatus paymentStatus;
+
+    private LocalDateTime paymentExpiresAt;
 
     private BigDecimal cancellationCharge;
 

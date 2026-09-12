@@ -1,11 +1,11 @@
 package com.example.Ev_Station_Backend.entity;
 
 import com.example.Ev_Station_Backend.Enum.BookingStatus;
+import com.example.Ev_Station_Backend.Enum.PaymentStatus;
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
 import java.math.BigDecimal;
-
 import java.time.LocalDateTime;
 
 @Entity
@@ -32,12 +32,25 @@ public class Booking {
     @Column(name = "end_time", nullable = false)
     private LocalDateTime endTime;
 
-    @Column(nullable = true)
-    private BigDecimal amount;
+    @Column(name = "estimated_amount")
+    private BigDecimal estimatedAmount;
+
+    @Column(name = "advance_amount")
+    private BigDecimal advanceAmount;
+
+    @Column(name = "final_amount")
+    private BigDecimal finalAmount;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private BookingStatus status;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "payment_status", nullable = false)
+    private PaymentStatus paymentStatus;
+
+    @Column(name = "payment_expires_at")
+    private LocalDateTime paymentExpiresAt;
 
     @Column(name = "cancellation_charge")
     private BigDecimal cancellationCharge;
@@ -53,12 +66,17 @@ public class Booking {
 
     @PrePersist
     protected void onCreate() {
-    if (status == null) {
-        status = BookingStatus.CONFIRMED;
-    }
 
-    if (createdAt == null) {
-        createdAt = LocalDateTime.now();
+        if (status == null) {
+            status = BookingStatus.PENDING;
+        }
+
+        if (paymentStatus == null) {
+            paymentStatus = PaymentStatus.PENDING;
+        }
+
+        if (createdAt == null) {
+            createdAt = LocalDateTime.now();
+        }
     }
-}
 }

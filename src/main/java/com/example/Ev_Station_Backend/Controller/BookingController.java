@@ -29,19 +29,82 @@ public class BookingController {
         response.setId(booking.getId());
         response.setUserId(booking.getUser().getId());
         response.setConnectorId(booking.getConnector().getId());
+
         response.setStartTime(booking.getStartTime());
         response.setEndTime(booking.getEndTime());
-        response.setAmount(booking.getAmount());
-        response.setStatus(booking.getStatus());
+
+        // Payment / Amount details
+        response.setEstimatedAmount(
+                booking.getEstimatedAmount()
+        );
+
+        response.setAdvanceAmount(
+                booking.getAdvanceAmount()
+        );
+
+        response.setFinalAmount(
+                booking.getFinalAmount()
+        );
+
+        response.setStatus(
+                booking.getStatus()
+        );
+
+        response.setPaymentStatus(
+                booking.getPaymentStatus()
+        );
+
+        response.setPaymentExpiresAt(
+                booking.getPaymentExpiresAt()
+        );
+
         response.setCancellationCharge(
                 booking.getCancellationCharge()
         );
+
         response.setRefundAmount(
                 booking.getRefundAmount()
         );
+
+        response.setCreatedAt(
+                booking.getCreatedAt()
+        );
+
+        response.setCancelledAt(
+                booking.getCancelledAt()
+        );
+
+        return ResponseEntity.ok(response);
+    }
+
+        @PostMapping("/{bookingId}/confirm-payment")
+        public ResponseEntity<BookingResponse> confirmPayment(
+                @PathVariable Long bookingId) {
+
+        Booking booking = bookingService.confirmPayment(bookingId);
+
+        BookingResponse response = new BookingResponse();
+
+        response.setId(booking.getId());
+        response.setUserId(booking.getUser().getId());
+        response.setConnectorId(booking.getConnector().getId());
+        response.setStartTime(booking.getStartTime());
+        response.setEndTime(booking.getEndTime());
+
+        response.setEstimatedAmount(booking.getEstimatedAmount());
+        response.setAdvanceAmount(booking.getAdvanceAmount());
+        response.setFinalAmount(booking.getFinalAmount());
+
+        response.setStatus(booking.getStatus());
+        response.setPaymentStatus(booking.getPaymentStatus());
+        response.setPaymentExpiresAt(booking.getPaymentExpiresAt());
+
+        response.setCancellationCharge(booking.getCancellationCharge());
+        response.setRefundAmount(booking.getRefundAmount());
         response.setCreatedAt(booking.getCreatedAt());
         response.setCancelledAt(booking.getCancelledAt());
 
         return ResponseEntity.ok(response);
-    }
+        }
 }
+
