@@ -6,36 +6,42 @@ EV Station Finder & Slot Booking is a Spring Boot backend application for managi
 
 The backend provides REST APIs for:
 
-- User registration and login
-- JWT-based authentication
-- Role-based authorization
-- Charging station management
-- Charger management
-- Connector management
-- Nearby charging station search
-- EV charging slot booking
-- Advance payment confirmation
-- Payment expiry handling
-- Booking status and payment status management
-- Gujarat BEE charging-station dataset import
+* User registration and login
+* JWT-based authentication
+* Role-based authorization
+* Charging station management
+* Charger management
+* Connector management
+* Charger pricing management
+* Nearby charging station search
+* EV charging slot booking
+* Booking availability validation
+* Advance payment confirmation
+* Payment expiry handling
+* Booking cancellation
+* Cancellation charge calculation
+* Refund calculation
+* Booking status and payment status management
+* Gujarat BEE charging-station dataset import
+* Centralized exception handling
 
 ---
 
 ## 🛠️ Technology Stack
 
-| Technology | Version / Purpose |
-|---|---|
-| Java | 17 |
-| Spring Boot | 4.1.0 |
-| Spring Data JPA | Database persistence |
-| Hibernate | ORM |
-| MySQL | Relational Database |
-| Spring Security | Authentication & Authorization |
-| JJWT | 0.12.6 |
-| Maven | Build & Dependency Management |
-| Lombok | Reduce Boilerplate Code |
-| Apache Commons CSV | CSV Dataset Processing |
-| Postman | API Testing |
+| Technology         | Version / Purpose              |
+| ------------------ | ------------------------------ |
+| Java               | 17                             |
+| Spring Boot        | 4.1.0                          |
+| Spring Data JPA    | Database persistence           |
+| Hibernate          | ORM                            |
+| MySQL              | Relational Database            |
+| Spring Security    | Authentication & Authorization |
+| JJWT               | 0.12.6                         |
+| Maven              | Build & Dependency Management  |
+| Lombok             | Reduce Boilerplate Code        |
+| Apache Commons CSV | CSV Dataset Processing         |
+| Postman            | API Testing                    |
 
 ---
 
@@ -73,25 +79,32 @@ The backend provides REST APIs for:
 ### Architecture Layers
 
 **Controller Layer**
+
 Handles HTTP requests and exposes REST APIs.
 
 **Service Layer**
+
 Contains application and business logic.
 
 **Repository Layer**
+
 Handles database operations using Spring Data JPA.
 
 **Entity Layer**
+
 Represents database tables and their relationships.
 
 **DTO Layer**
-Used for transferring request and response data between client and backend.
+
+Used for transferring request and response data between the client and backend.
 
 **Security Layer**
+
 Handles JWT-based authentication and request authentication.
 
 **Exception Layer**
-Provides centralized exception handling.
+
+Provides centralized exception handling for application errors.
 
 ---
 
@@ -116,6 +129,7 @@ src/main/java/com/example/Ev_Station_Backend
 ├── dto
 │   ├── BookingRequest.java
 │   ├── BookingResponse.java
+│   ├── BookingCancellationRequest.java
 │   ├── ChargerRequest.java
 │   ├── ChargerResponse.java
 │   ├── ChargingStationRequest.java
@@ -124,6 +138,7 @@ src/main/java/com/example/Ev_Station_Backend
 │   ├── ConnectorResponse.java
 │   ├── LoginRequest.java
 │   ├── LoginResponse.java
+│   ├── PaymentRequest.java
 │   ├── RegisterRequest.java
 │   └── RegisterResponse.java
 │
@@ -140,6 +155,7 @@ src/main/java/com/example/Ev_Station_Backend
 │   └── PaymentStatus.java
 │
 ├── exception
+│   ├── BookingException.java
 │   ├── GlobalExceptionHandler.java
 │   └── ResourceNotFoundException.java
 │
@@ -173,11 +189,11 @@ src/main/java/com/example/Ev_Station_Backend
 
 The backend supports:
 
-- User registration
-- User login
-- JWT token generation
-- JWT authentication
-- Role-based authorization
+* User registration
+* User login
+* JWT token generation
+* JWT authentication
+* Role-based authorization
 
 ### Authentication APIs
 
@@ -190,21 +206,21 @@ POST /api/auth/login
 
 ## 2. Charging Station Management
 
-Charging stations contain:
+Charging stations contain information such as:
 
-- CPO Name
-- Government / Private classification
-- State
-- District
-- City / Village
-- Location
-- Latitude
-- Longitude
-- Source
-- Google Place ID
-- Status
-- Created Time
-- Updated Time
+* CPO Name
+* Government / Private classification
+* State
+* District
+* City / Village
+* Location
+* Latitude
+* Longitude
+* Source
+* Google Place ID
+* Status
+* Created Time
+* Updated Time
 
 ---
 
@@ -214,12 +230,12 @@ Each charging station can contain multiple chargers.
 
 A charger stores:
 
-- Charger Type
-- Charger Rating
-- Connector Rating
-- Number of Connectors
-- BEE Source Index
-- Associated Charging Station
+* Charger Type
+* Charger Rating
+* Connector Rating
+* Number of Connectors
+* BEE Source Index
+* Associated Charging Station
 
 ### Relationship
 
@@ -239,9 +255,9 @@ Connectors belong to chargers.
 
 Each connector contains:
 
-- Connector Number
-- Status
-- Associated Charger
+* Connector Number
+* Status
+* Associated Charger
 
 ### Relationship
 
@@ -269,10 +285,12 @@ The project maintains pricing based on charger type.
 
 The `ChargerPricing` entity contains:
 
-- Charger Type
-- Price Per kWh
+* Charger Type
+* Price Per kWh
 
 Each charger type has a unique pricing entry.
+
+The booking service uses the configured charger pricing to calculate the estimated booking amount.
 
 ---
 
@@ -280,9 +298,9 @@ Each charger type has a unique pricing entry.
 
 The backend supports searching charging stations using:
 
-- Latitude
-- Longitude
-- Radius
+* Latitude
+* Longitude
+* Radius
 
 ### Example
 
@@ -316,7 +334,7 @@ The `Charger` entity contains a unique:
 beeSourceIndex
 ```
 
-This identifies the source row from the BEE CSV during import.
+This identifies the source row from the BEE CSV during import and helps prevent duplicate imports.
 
 ---
 
@@ -326,20 +344,20 @@ Users can create charging-slot bookings for a connector.
 
 A booking contains:
 
-- User
-- Connector
-- Start Time
-- End Time
-- Estimated Amount
-- Advance Amount
-- Final Amount
-- Booking Status
-- Payment Status
-- Payment Expiry Time
-- Cancellation Charge
-- Refund Amount
-- Created Time
-- Cancelled Time
+* User
+* Connector
+* Start Time
+* End Time
+* Estimated Amount
+* Advance Amount
+* Final Amount
+* Booking Status
+* Payment Status
+* Payment Expiry Time
+* Cancellation Charge
+* Refund Amount
+* Created Time
+* Cancelled Time
 
 ### Booking API
 
@@ -347,11 +365,17 @@ A booking contains:
 POST /api/bookings
 ```
 
+### Booking Availability
+
+The booking system checks whether the selected connector is already booked for the requested time.
+
+A transition buffer is also applied between bookings to reduce scheduling conflicts.
+
 ---
 
 ## 9. Advance Payment
 
-The booking system supports an advance-payment flow.
+The booking system supports an advance-payment flow to reduce unpaid or fake bookings.
 
 ### Booking Flow
 
@@ -367,11 +391,11 @@ Calculate Advance Amount
       v
 Payment Pending
       |
-      v
-Confirm Payment
-      |
-      v
-Booking Confirmation
+      +----------------------+
+      |                      |
+      | Payment Timeout      | Payment Successful
+      v                      v
+   EXPIRED               CONFIRMED
 ```
 
 The booking stores:
@@ -387,14 +411,74 @@ paymentExpiresAt
 ### Payment Confirmation API
 
 ```http
-POST /api/bookings/{bookingId}/confirm-payment
+POST /api/bookings/{bookingId}/payment
 ```
+
+The payment request contains the advance payment amount.
+
+When the correct advance payment is confirmed:
+
+```text
+PaymentStatus = PAID
+BookingStatus = CONFIRMED
+paymentExpiresAt = null
+```
+
+If the payment is not completed before the payment expiry time, the booking can expire.
 
 ---
 
-## 10. Booking Status
+## 10. Booking Cancellation
 
-The project supports:
+The booking system supports cancellation of bookings.
+
+### Cancellation API
+
+```http
+POST /api/bookings/{bookingId}/cancel
+```
+
+Cancellation processing can update:
+
+* Booking Status
+* Payment Status
+* Cancellation Charge
+* Refund Amount
+* Cancellation Time
+
+### Cancellation Flow
+
+```text
+Booking
+   |
+   v
+Check Booking Status
+   |
+   v
+Check Payment Status
+   |
+   v
+Calculate Cancellation Charge
+   |
+   v
+Calculate Refund Amount
+   |
+   v
+Update Booking
+   |
+   v
+CANCELLED
+```
+
+For paid bookings, the cancellation logic considers the remaining time before the booking starts to determine the applicable cancellation charge and refund amount.
+
+For pending unpaid bookings, cancellation does not require a refund because no advance payment has been completed.
+
+---
+
+## 11. Booking Status
+
+The project supports the following booking statuses:
 
 ```text
 PENDING
@@ -404,11 +488,21 @@ COMPLETED
 EXPIRED
 ```
 
+### Status Meaning
+
+| Status    | Description                                             |
+| --------- | ------------------------------------------------------- |
+| PENDING   | Booking created but advance payment is pending          |
+| CONFIRMED | Advance payment has been successfully confirmed         |
+| CANCELLED | Booking has been cancelled                              |
+| COMPLETED | Booking has been completed                              |
+| EXPIRED   | Booking expired before successful payment or completion |
+
 ---
 
-## 11. Payment Status
+## 12. Payment Status
 
-The project supports:
+The project supports the following payment statuses:
 
 ```text
 PENDING
@@ -416,7 +510,19 @@ PAID
 FAILED
 REFUNDED
 PARTIALLY_REFUNDED
+CANCELLED
 ```
+
+### Status Meaning
+
+| Status             | Description                                                                                     |
+| ------------------ | ----------------------------------------------------------------------------------------------- |
+| PENDING            | Payment has not yet been completed                                                              |
+| PAID               | Advance payment was successfully confirmed                                                      |
+| FAILED             | Payment attempt was not successful                                                              |
+| REFUNDED           | Payment amount was fully refunded                                                               |
+| PARTIALLY_REFUNDED | Part of the payment amount was refunded                                                         |
+| CANCELLED          | Payment was cancelled because the associated booking was cancelled or payment was not completed |
 
 ---
 
@@ -424,12 +530,12 @@ PARTIALLY_REFUNDED
 
 Main entities:
 
-- User
-- ChargingStation
-- Charger
-- Connector
-- ChargerPricing
-- Booking
+* User
+* ChargingStation
+* Charger
+* Connector
+* ChargerPricing
+* Booking
 
 ### Entity Relationships
 
@@ -465,66 +571,67 @@ Booking
 
 ## Authentication APIs
 
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/api/auth/register` | Register a new user |
-| POST | `/api/auth/login` | Login and receive authentication token |
+| Method | Endpoint             | Description                            |
+| ------ | -------------------- | -------------------------------------- |
+| POST   | `/api/auth/register` | Register a new user                    |
+| POST   | `/api/auth/login`    | Login and receive authentication token |
 
 ## Charging Station APIs
 
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/api/stations` | Create charging station |
-| GET | `/api/stations` | Get all charging stations |
-| GET | `/api/stations/{id}` | Get charging station by ID |
-| GET | `/api/stations/nearby` | Search nearby charging stations |
-| DELETE | `/api/stations/{id}` | Delete charging station |
+| Method | Endpoint               | Description                     |
+| ------ | ---------------------- | ------------------------------- |
+| POST   | `/api/stations`        | Create charging station         |
+| GET    | `/api/stations`        | Get all charging stations       |
+| GET    | `/api/stations/{id}`   | Get charging station by ID      |
+| GET    | `/api/stations/nearby` | Search nearby charging stations |
+| DELETE | `/api/stations/{id}`   | Delete charging station         |
 
 ## Charger APIs
 
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/api/chargers` | Create charger |
-| GET | `/api/chargers` | Get all chargers |
-| GET | `/api/chargers/{id}` | Get charger by ID |
-| DELETE | `/api/chargers/{id}` | Delete charger |
+| Method | Endpoint             | Description       |
+| ------ | -------------------- | ----------------- |
+| POST   | `/api/chargers`      | Create charger    |
+| GET    | `/api/chargers`      | Get all chargers  |
+| GET    | `/api/chargers/{id}` | Get charger by ID |
+| DELETE | `/api/chargers/{id}` | Delete charger    |
 
 ## Connector APIs
 
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/api/connectors` | Create connector |
-| GET | `/api/connectors` | Get all connectors |
-| GET | `/api/connectors/{id}` | Get connector by ID |
-| DELETE | `/api/connectors/{id}` | Delete connector |
+| Method | Endpoint               | Description         |
+| ------ | ---------------------- | ------------------- |
+| POST   | `/api/connectors`      | Create connector    |
+| GET    | `/api/connectors`      | Get all connectors  |
+| GET    | `/api/connectors/{id}` | Get connector by ID |
+| DELETE | `/api/connectors/{id}` | Delete connector    |
 
 ## Booking APIs
 
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/api/bookings` | Create booking |
-| POST | `/api/bookings/{bookingId}/confirm-payment` | Confirm advance payment |
+| Method | Endpoint                            | Description             |
+| ------ | ----------------------------------- | ----------------------- |
+| POST   | `/api/bookings`                     | Create booking          |
+| POST   | `/api/bookings/{bookingId}/payment` | Confirm advance payment |
+| POST   | `/api/bookings/{bookingId}/cancel`  | Cancel booking          |
 
 ## User APIs
 
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/api/users` | Create user |
-| GET | `/api/users` | Get all users |
-| GET | `/api/users/{id}` | Get user by ID |
-| DELETE | `/api/users/{id}` | Delete user |
+| Method | Endpoint          | Description    |
+| ------ | ----------------- | -------------- |
+| POST   | `/api/users`      | Create user    |
+| GET    | `/api/users`      | Get all users  |
+| GET    | `/api/users/{id}` | Get user by ID |
+| DELETE | `/api/users/{id}` | Delete user    |
 
 ## BEE Dataset API
 
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/api/import/bee` | Import BEE charging-station dataset |
+| Method | Endpoint          | Description                         |
+| ------ | ----------------- | ----------------------------------- |
+| POST   | `/api/import/bee` | Import BEE charging-station dataset |
 
 ## Test API
 
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/api/test` | Test backend endpoint |
+| Method | Endpoint    | Description           |
+| ------ | ----------- | --------------------- |
+| GET    | `/api/test` | Test backend endpoint |
 
 ---
 
@@ -560,9 +667,9 @@ spring.datasource.password=YOUR_PASSWORD
 
 Install the following:
 
-- Java 17
-- MySQL
-- Git
+* Java 17
+* MySQL
+* Git
 
 The project includes Maven Wrapper, so Maven does not need to be installed separately.
 
@@ -664,6 +771,11 @@ Recommended testing flow:
        |
        v
 9. Confirm Advance Payment
+       |
+       v
+10. Booking Confirmed
+       |
+       +---- Cancel Booking ----> Refund / Cancellation Charge
 ```
 
 ---
@@ -688,6 +800,8 @@ Role-based authorization is configured through:
 SecurityConfig.java
 ```
 
+Protected APIs require a valid JWT token where configured by the security rules.
+
 ---
 
 # ⚠️ Exception Handling
@@ -703,6 +817,14 @@ Resource-specific errors are handled using:
 ```text
 ResourceNotFoundException.java
 ```
+
+Booking-specific business errors are handled using:
+
+```text
+BookingException.java
+```
+
+This allows the application to return structured error responses instead of exposing raw exceptions.
 
 ---
 
@@ -739,6 +861,9 @@ Booking & Availability
         |
         v
 Advance Payment & Payment Expiry
+        |
+        v
+Payment & Booking Cancellation
 ```
 
 ---
@@ -747,13 +872,16 @@ Advance Payment & Payment Expiry
 
 Possible future enhancements:
 
-- Frontend / Android application integration
-- Real online payment gateway integration
-- Real-time charger availability
-- Improved booking management
-- User profile enhancements
-- Charging-session tracking
-- Additional station data integrations
+* Frontend / Android application integration
+* Real online payment gateway integration
+* Real-time charger availability
+* Improved booking management
+* User profile enhancements
+* Charging-session tracking
+* Additional station data integrations
+* Notification system for booking and payment events
+* Admin dashboard
+* Charging-session billing based on actual energy consumption
 
 ---
 
@@ -761,19 +889,23 @@ Possible future enhancements:
 
 Current backend modules include:
 
-- User Authentication
-- JWT Authorization
-- Role-Based Authorization
-- Charging Stations
-- Chargers
-- Connectors
-- Charger Pricing
-- BEE Dataset Import
-- Nearby Station Search
-- Booking
-- Advance Payment
-- Payment Expiry
-- Exception Handling
+* User Authentication
+* JWT Authorization
+* Role-Based Authorization
+* Charging Stations
+* Chargers
+* Connectors
+* Charger Pricing
+* BEE Dataset Import
+* Nearby Station Search
+* Booking
+* Booking Availability Validation
+* Advance Payment
+* Payment Expiry
+* Booking Cancellation
+* Cancellation Charge
+* Refund Calculation
+* Exception Handling
 
 ---
 
