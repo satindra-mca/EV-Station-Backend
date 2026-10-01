@@ -7,10 +7,14 @@ import com.example.Ev_Station_Backend.Repository.ChargerPricingRepository;
 import com.example.Ev_Station_Backend.Repository.ConnectorRepository;
 import com.example.Ev_Station_Backend.Repository.UserRepository;
 import com.example.Ev_Station_Backend.dto.BookingRequest;
+import com.example.Ev_Station_Backend.dto.PaymentRequest;
 import com.example.Ev_Station_Backend.entity.Booking;
 import com.example.Ev_Station_Backend.entity.ChargerPricing;
 import com.example.Ev_Station_Backend.entity.Connector;
 import com.example.Ev_Station_Backend.entity.User;
+import com.example.Ev_Station_Backend.exception.BookingException;
+
+
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
@@ -29,13 +33,21 @@ public class BookingService {
     /*
      * Business rules
      */
-    private static final BigDecimal ESTIMATED_KWH_PER_HOUR =
+        private static final BigDecimal ESTIMATED_KWH_PER_HOUR =
             BigDecimal.valueOf(5);
 
-    private static final BigDecimal ADVANCE_PERCENTAGE =
+        private static final BigDecimal ADVANCE_PERCENTAGE =
             BigDecimal.valueOf(0.20);
 
-    private static final long PAYMENT_EXPIRY_MINUTES = 15;
+        private static final long PAYMENT_EXPIRY_MINUTES = 15;
+        private static final long FULL_REFUND_HOURS = 8;
+        private static final long PARTIAL_REFUND_HOURS = 5;
+
+        private static final BigDecimal PARTIAL_CANCELLATION_CHARGE =
+                BigDecimal.valueOf(0.20);
+
+        private static final BigDecimal LATE_CANCELLATION_CHARGE =
+                BigDecimal.valueOf(0.50);
 
     private final BookingRepository bookingRepository;
     private final UserRepository userRepository;
@@ -287,45 +299,221 @@ public class BookingService {
         return bookingRepository.save(booking);
         }
 
-        public Booking confirmPayment(Long bookingId) {
 
+        public Booking cancelBooking(
+                Long bookingId,
+                String reason) {
+
+        // 1. Get currently logged-in user
         User currentUser = getCurrentUser();
 
+        // 2. Find booking
         Booking booking = bookingRepository.findById(bookingId)
                 .orElseThrow(() ->
                         new RuntimeException("Booking not found"));
 
+        // 3. Check booking ownership
         if (!booking.getUser().getId().equals(currentUser.getId())) {
+
                 throw new RuntimeException(
-                        "You are not allowed to confirm payment for this booking"
-                );
+                        "You are not allowed to cancel this booking");
         }
 
+        // 4. Already cancelled
         if (booking.getStatus() == BookingStatus.CANCELLED) {
-                throw new RuntimeException("Booking is cancelled");
+
+                throw new RuntimeException(
+                        "Booking is already cancelled");
         }
 
+        // 5. Expired booking cannot be cancelled
         if (booking.getStatus() == BookingStatus.EXPIRED) {
-                throw new RuntimeException("Booking payment has expired");
+
+                throw new RuntimeException(
+                        "Expired booking cannot be cancelled");
         }
 
-        if (booking.getPaymentStatus() == PaymentStatus.PAID) {
-                throw new RuntimeException("Payment is already confirmed");
+        // 6. Completed booking cannot be cancelled
+        if (booking.getStatus() == BookingStatus.COMPLETED) {
+
+                throw new RuntimeException(
+                        "Completed booking cannot be cancelled");
         }
 
-        if (booking.getPaymentExpiresAt() != null &&
-                booking.getPaymentExpiresAt().isBefore(LocalDateTime.now())) {
+        LocalDateTime now = LocalDateTime.now();
 
-                booking.setStatus(BookingStatus.EXPIRED);
-                booking.setPaymentStatus(PaymentStatus.FAILED);
+        // 7. Cancellation after booking start is not allowed
+        if (!now.isBefore(booking.getStartTime())) {
+
+                throw new RuntimeException(
+                        "Booking cannot be cancelled after the start time");
+        }
+
+        /*
+        * 8. PENDING + PENDING
+        *
+        * Advance payment has not been completed.
+        * Therefore there is no money to refund.
+        */
+        if (booking.getStatus() == BookingStatus.PENDING &&
+                booking.getPaymentStatus() == PaymentStatus.PENDING) {
+
+                booking.setStatus(BookingStatus.CANCELLED);
+                booking.setPaymentStatus(PaymentStatus.CANCELLED);
+
+                booking.setCancellationCharge(BigDecimal.ZERO);
+                booking.setRefundAmount(BigDecimal.ZERO);
+                booking.setCancelledAt(now);
 
                 return bookingRepository.save(booking);
         }
 
-        booking.setPaymentStatus(PaymentStatus.PAID);
-        booking.setStatus(BookingStatus.CONFIRMED);
-        booking.setPaymentExpiresAt(null);
-        return bookingRepository.save(booking);
+        /*
+        * 9. CONFIRMED + PAID
+        *
+        * Calculate cancellation charge based on
+        * remaining time before booking start.
+        */
+        if (booking.getStatus() == BookingStatus.CONFIRMED &&
+                booking.getPaymentStatus() == PaymentStatus.PAID) {
+
+                Duration remainingTime =
+                        Duration.between(now, booking.getStartTime());
+
+                BigDecimal chargePercentage;
+
+
+
+                /*
+                * More than 8 hours
+                * → 0% cancellation charge
+                */
+                if (remainingTime.compareTo(
+                        Duration.ofHours(FULL_REFUND_HOURS)) > 0) {
+
+                chargePercentage = BigDecimal.ZERO;
+                }
+                else if (remainingTime.compareTo(
+                        Duration.ofHours(PARTIAL_REFUND_HOURS)) >= 0) {
+
+                chargePercentage =
+                        PARTIAL_CANCELLATION_CHARGE;
+                }
+                else {
+
+                chargePercentage =
+                        LATE_CANCELLATION_CHARGE;
+                }
+                BigDecimal advanceAmount =
+                        booking.getAdvanceAmount();
+
+                BigDecimal cancellationCharge =
+                        advanceAmount
+                                .multiply(chargePercentage)
+                                .setScale(2, RoundingMode.HALF_UP);
+
+                BigDecimal refundAmount =
+                        advanceAmount
+                                .subtract(cancellationCharge)
+                                .setScale(2, RoundingMode.HALF_UP);
+
+                booking.setCancellationCharge(
+                        cancellationCharge);
+
+                booking.setRefundAmount(
+                        refundAmount);
+
+                booking.setStatus(
+                        BookingStatus.CANCELLED);
+
+                booking.setCancelledAt(now);
+
+                /*
+                * Full refund
+                */
+                if (refundAmount.compareTo(BigDecimal.ZERO) > 0 &&
+                        cancellationCharge.compareTo(BigDecimal.ZERO) == 0) {
+
+                booking.setPaymentStatus(
+                        PaymentStatus.REFUNDED);
+                }
+
+                /*
+                * Partial refund
+                */
+                else if (refundAmount.compareTo(BigDecimal.ZERO) > 0) {
+
+                booking.setPaymentStatus(
+                        PaymentStatus.PARTIALLY_REFUNDED);
+                }
+
+                /*
+                * No refund
+                */
+                else {
+
+                booking.setPaymentStatus(
+                        PaymentStatus.CANCELLED);
+                }
+
+                return bookingRepository.save(booking);
+        }
+
+        throw new RuntimeException(
+                "Booking cannot be cancelled in its current state");
+        }
+
+        public Booking confirmPayment(Long bookingId, PaymentRequest request) {
+
+                        User currentUser = getCurrentUser();
+
+                Booking booking = bookingRepository.findById(bookingId)
+                        .orElseThrow(() ->
+                                new RuntimeException("Booking not found"));
+
+                if (!booking.getUser().getId().equals(currentUser.getId())) {
+                        throw new RuntimeException(
+                                "You are not allowed to confirm payment for this booking");
+                }
+
+                if (booking.getStatus() == BookingStatus.CANCELLED) {
+                        throw new RuntimeException("Booking is cancelled");
+                }
+
+                if (booking.getStatus() == BookingStatus.EXPIRED) {
+                        throw new RuntimeException("Booking payment has expired");
+                }
+
+                if (booking.getPaymentStatus() == PaymentStatus.PAID) {
+                        throw new RuntimeException("Payment is already confirmed");
+                }
+
+                LocalDateTime now = LocalDateTime.now();
+
+                if (booking.getPaymentExpiresAt() != null &&
+                        booking.getPaymentExpiresAt().isBefore(now)) {
+
+                        booking.setStatus(BookingStatus.EXPIRED);
+                        booking.setPaymentStatus(PaymentStatus.FAILED);
+
+                        return bookingRepository.save(booking);
+                }
+
+                BigDecimal requiredAdvance = booking.getAdvanceAmount();
+
+                if (request.getAmount() == null) {
+                        throw new RuntimeException("Payment amount is required");
+                }
+
+                if (request.getAmount().compareTo(requiredAdvance) != 0) {
+                        throw new BookingException("Incorrect advance payment amount. Required amount: "+ requiredAdvance);
+                }
+
+                booking.setPaymentStatus(PaymentStatus.PAID);
+                booking.setStatus(BookingStatus.CONFIRMED);
+                booking.setPaymentExpiresAt(null);
+
+                return bookingRepository.save(booking);
         }
 }
 

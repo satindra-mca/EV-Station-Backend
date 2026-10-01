@@ -31,6 +31,23 @@ public class GlobalExceptionHandler {
         );
     }
 
+    @ExceptionHandler(BookingException.class)
+        public ResponseEntity<Map<String, Object>> handleBookingException(
+                BookingException ex) {
+
+        Map<String, Object> response = new HashMap<>();
+
+        response.put("timestamp", LocalDateTime.now());
+        response.put("status", HttpStatus.BAD_REQUEST.value());
+        response.put("error", "Booking Error");
+        response.put("message", ex.getMessage());
+
+        return new ResponseEntity<>(
+                response,
+                HttpStatus.BAD_REQUEST
+        );
+        }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidationException(
             MethodArgumentNotValidException ex) {

@@ -10,6 +10,8 @@ public enum PaymentStatus {
 
     REFUNDED,
 
-    PARTIALLY_REFUNDED
+    PARTIALLY_REFUNDED,
+
+    CANCELLED
 
 }
