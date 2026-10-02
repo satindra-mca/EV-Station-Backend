@@ -9,15 +9,20 @@ import com.example.Ev_Station_Backend.entity.Booking;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import com.example.Ev_Station_Backend.Service.BookingHistoryService;
+import com.example.Ev_Station_Backend.dto.BookingHistoryResponse;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/bookings")
 public class BookingController {
 
     private final BookingService bookingService;
+    private final BookingHistoryService bookingHistoryService;
 
-    public BookingController(BookingService bookingService) {
+    public BookingController(BookingService bookingService , BookingHistoryService bookingHistoryService) {
         this.bookingService = bookingService;
+        this.bookingHistoryService = bookingHistoryService;
     }
 
     @PostMapping
@@ -202,5 +207,22 @@ public class BookingController {
 
                 return ResponseEntity.ok(response);
                 }
+
+        @GetMapping("/my")
+                public ResponseEntity<List<BookingHistoryResponse>> getMyBookings() {
+
+                return ResponseEntity.ok(
+                        bookingHistoryService.getMyBookings()
+                );
+                }
+
+        @GetMapping("/{bookingId}")
+                public ResponseEntity<BookingHistoryResponse> getBookingById(
+                        @PathVariable Long bookingId) {
+
+                return ResponseEntity.ok(
+                        bookingHistoryService.getBookingById(bookingId)
+                );
+}
 }
 
