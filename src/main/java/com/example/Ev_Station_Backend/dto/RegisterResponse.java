@@ -1,4 +1,5 @@
 package com.example.Ev_Station_Backend.dto;
+import com.example.Ev_Station_Backend.Enum.Role;
 
 public class RegisterResponse {
 
@@ -6,10 +7,10 @@ public class RegisterResponse {
     private String name;
     private String email;
     private String mobile;
-    private String role;
+    private Role role;
 
     public RegisterResponse(Long id, String name, String email,
-                            String mobile, String role) {
+                            String mobile, Role role) {
 
         this.id = id;
         this.name = name;
@@ -34,7 +35,7 @@ public class RegisterResponse {
         return mobile;
     }
 
-    public String getRole() {
+    public Role getRole() {
         return role;
     }
 }

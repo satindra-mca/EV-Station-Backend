@@ -1,4 +1,6 @@
 package com.example.Ev_Station_Backend.Service;
+import com.example.Ev_Station_Backend.Enum.Role;
+
 
 import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.Jwts;
@@ -27,7 +29,7 @@ public class JwtService {
     }
 
     // Generate JWT Token
-    public String generateToken(String email, String role) {
+    public String generateToken(String email, Role role) {
 
         Date now = new Date();
 
@@ -36,7 +38,7 @@ public class JwtService {
 
         return Jwts.builder()
                 .subject(email)
-                .claim("role", role)
+                .claim("role", role.name())
                 .issuedAt(now)
                 .expiration(expiryDate)
                 .signWith(getSigningKey())

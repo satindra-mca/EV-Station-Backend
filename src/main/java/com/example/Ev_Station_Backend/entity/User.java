@@ -1,4 +1,5 @@
 package com.example.Ev_Station_Backend.entity;
+import com.example.Ev_Station_Backend.Enum.Role;
 
 import jakarta.persistence.*;
 import lombok.Getter;
@@ -31,6 +32,7 @@ public class User {
     @Column(name = "provider_id")
     private String providerId;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private String role;
+    private Role role;
 }

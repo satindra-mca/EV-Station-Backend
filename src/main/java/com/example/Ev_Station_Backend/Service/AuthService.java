@@ -2,6 +2,7 @@ package com.example.Ev_Station_Backend.Service;
 
 import com.example.Ev_Station_Backend.dto.RegisterRequest;
 import com.example.Ev_Station_Backend.entity.User;
+import com.example.Ev_Station_Backend.Enum.Role;
 import com.example.Ev_Station_Backend.Repository.UserRepository;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -43,7 +44,7 @@ public class AuthService {
         user.setMobile(request.getMobile());
 
         // Default role
-        user.setRole("USER");
+        user.setRole(Role.USER);
 
         // Normal registration
         user.setAuthProvider("LOCAL");
