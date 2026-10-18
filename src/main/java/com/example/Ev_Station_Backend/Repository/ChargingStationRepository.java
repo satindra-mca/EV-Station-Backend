@@ -39,4 +39,6 @@ public interface ChargingStationRepository extends JpaRepository<ChargingStation
             @Param("longitude") Double longitude,
             @Param("radius") Double radius
     );
+
+    Optional<ChargingStation> findByOwner_Id(Long ownerId);
 }

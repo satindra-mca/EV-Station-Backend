@@ -6,6 +6,8 @@ import lombok.Setter;
 
 import java.time.LocalDateTime;
 
+
+
 @Entity
 @Table(name = "charging_stations")
 @Getter
@@ -43,4 +45,12 @@ public class ChargingStation {
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(
+        name = "owner_id",
+        unique = true,
+        foreignKey = @ForeignKey(name = "fk_charging_stations_owner")
+    )
+    private User owner;
 }

@@ -1,8 +1,9 @@
 package com.example.Ev_Station_Backend.entity;
-
 import jakarta.persistence.*;
 import lombok.Getter;
 import lombok.Setter;
+import java.math.BigDecimal;
+
 
 import java.util.List;
 
@@ -36,6 +37,9 @@ public class Charger {
      */
     @Column(name = "bee_source_index", unique = true)
     private Long beeSourceIndex;
+
+    @Column(name = "price_per_kwh", nullable = false, precision = 38, scale = 2)
+    private BigDecimal pricePerKwh = BigDecimal.ZERO;
 
     @ManyToOne
     @JoinColumn(name = "charging_station_id", nullable = false)

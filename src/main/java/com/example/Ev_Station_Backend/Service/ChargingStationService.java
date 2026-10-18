@@ -3,6 +3,14 @@ package com.example.Ev_Station_Backend.Service;
 import com.example.Ev_Station_Backend.entity.ChargingStation;
 import com.example.Ev_Station_Backend.Repository.ChargingStationRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
+
+import com.example.Ev_Station_Backend.Repository.UserRepository;
+import com.example.Ev_Station_Backend.entity.User;
+import com.example.Ev_Station_Backend.Enum.Role;
+
+import org.springframework.http.HttpStatus;
+import org.springframework.security.access.AccessDeniedException;
 
 import java.util.List;
 
@@ -10,9 +18,11 @@ import java.util.List;
 public class ChargingStationService {
 
     private final ChargingStationRepository chargingStationRepository;
+    private final UserRepository userRepository;
 
-    public ChargingStationService(ChargingStationRepository chargingStationRepository) {
+    public ChargingStationService(ChargingStationRepository chargingStationRepository , UserRepository userRepository) {
         this.chargingStationRepository = chargingStationRepository;
+        this.userRepository = userRepository;
     }
 
     // Create / Update
@@ -47,5 +57,23 @@ public class ChargingStationService {
                 longitude,
                 radius
         );
+    }
+
+    public ChargingStation getOwnerStation(String email) {
+
+        User owner = userRepository.findByEmail(email)
+                .orElseThrow(() ->
+                        new RuntimeException("User not found"));
+
+        if (owner.getRole() != Role.OWNER) {
+            throw new AccessDeniedException(
+                    "Only owners can access this resource");
+        }
+
+        return chargingStationRepository.findByOwner_Id(owner.getId())
+        .orElseThrow(() ->
+                new ResponseStatusException(
+                        HttpStatus.NOT_FOUND,
+                        "No charging station assigned to this owner"));
     }
 }

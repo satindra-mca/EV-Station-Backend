@@ -2,7 +2,7 @@ package com.example.Ev_Station_Backend.Repository;
 
 import com.example.Ev_Station_Backend.entity.Connector;
 import org.springframework.data.jpa.repository.JpaRepository;
-
+import java.util.*;
 import java.util.Optional;
 
 public interface ConnectorRepository extends JpaRepository<Connector, Long> {
@@ -11,4 +11,6 @@ public interface ConnectorRepository extends JpaRepository<Connector, Long> {
             Long chargerId,
             Integer connectorNumber
     );
+
+    List<Connector> findAllByChargerChargingStationId(Long stationId);
 }

@@ -9,6 +9,8 @@ import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import com.example.Ev_Station_Backend.entity.ChargingStation;
+
 
 @RestController
 @RequestMapping("/api/admin/owners")
@@ -38,6 +40,18 @@ public class AdminOwnerController {
                 .status(HttpStatus.CREATED)
                 .body(response);
     }
+
+    @PutMapping("/{ownerId}/station/{stationId}")
+        public ResponseEntity<String> assignStationToOwner(
+                @PathVariable Long ownerId,
+                @PathVariable Long stationId) {
+
+        adminOwnerService.assignStationToOwner(ownerId, stationId);
+
+        return ResponseEntity.ok(
+                "Charging station assigned to owner successfully"
+        );
+        }
 
     public record OwnerResponse(
             Long id,

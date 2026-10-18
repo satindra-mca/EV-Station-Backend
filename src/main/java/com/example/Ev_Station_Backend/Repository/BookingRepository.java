@@ -25,4 +25,6 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     );
 
     List<Booking> findAllByUserIdOrderByCreatedAtDesc(Long userId);
+    boolean existsByConnectorChargerId(Long chargerId);
+    boolean existsByConnectorId(Long connectorId);
 }
