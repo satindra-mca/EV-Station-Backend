@@ -27,4 +27,14 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     List<Booking> findAllByUserIdOrderByCreatedAtDesc(Long userId);
     boolean existsByConnectorChargerId(Long chargerId);
     boolean existsByConnectorId(Long connectorId);
+
+    List<Booking> findAllByConnector_Charger_ChargingStation_IdAndStartTimeGreaterThanEqualAndStartTimeLessThanOrderByStartTimeAsc(
+        Long stationId,
+        LocalDateTime startTime,
+        LocalDateTime endTime
+    );
+
+    List<Booking> findAllByConnector_Charger_ChargingStation_IdOrderByStartTimeAsc(
+        Long stationId
+    );
 }
