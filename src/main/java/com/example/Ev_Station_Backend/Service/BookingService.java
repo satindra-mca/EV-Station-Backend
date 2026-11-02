@@ -13,6 +13,10 @@ import com.example.Ev_Station_Backend.entity.ChargerPricing;
 import com.example.Ev_Station_Backend.entity.Connector;
 import com.example.Ev_Station_Backend.entity.User;
 import com.example.Ev_Station_Backend.exception.BookingException;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.annotation.Isolation;
+import com.example.Ev_Station_Backend.exception.ResourceNotFoundException;
+import org.springframework.security.access.AccessDeniedException;
 
 
 import org.springframework.security.core.Authentication;
@@ -90,24 +94,38 @@ public class BookingService {
     /*
      * Create Booking
      */
+    @Transactional(isolation = Isolation.READ_COMMITTED)
     public Booking createBooking(BookingRequest request) {
 
         // 1. Get logged-in user
         User user = getCurrentUser();
 
         // 2. Check connector exists
-        Connector connector = connectorRepository.findById(
+        Connector connector = connectorRepository.findByIdForUpdate(
                 request.getConnectorId()
         ).orElseThrow(() ->
-                new RuntimeException("Connector not found")
+                new ResourceNotFoundException("Connector not found")
         );
 
         // 3. Validate booking time
-        if (!request.getStartTime().isBefore(request.getEndTime())) {
+        LocalDateTime now = LocalDateTime.now();
 
-            throw new RuntimeException(
-                    "Start time must be before end time"
-            );
+        if (!request.getStartTime().isAfter(now)) {
+        throw new BookingException(
+                "Booking start time must be in the future"
+        );
+        }
+
+        if (!request.getStartTime().isBefore(request.getEndTime())) {
+        throw new BookingException(
+                "Start time must be before end time"
+        );
+        }
+
+        if (!"AVAILABLE".equalsIgnoreCase(connector.getStatus())) {
+        throw new BookingException(
+                "Connector is not available for booking"
+        );
         }
 
         // 4. Get charger type
@@ -129,15 +147,11 @@ public class BookingService {
 
         // 6. Check existing bookings for this connector
         List<Booking> existingBookings =
-                bookingRepository.findAll();
+        bookingRepository.findAllByConnector_Id(connector.getId());
 
-        LocalDateTime newStart =
-                request.getStartTime();
+        LocalDateTime newStart = request.getStartTime();
 
-        LocalDateTime newEnd =
-                request.getEndTime();
-
-        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime newEnd = request.getEndTime();
 
         // 7. Check overlap + 15 minute buffer
         for (Booking existingBooking : existingBookings) {
@@ -150,58 +164,35 @@ public class BookingService {
                 continue;
             }
 
-            /*
-             * Cancelled booking does not block connector
-             */
-            if (existingBooking.getStatus()
-                    == BookingStatus.CANCELLED) {
-
+            // Only PENDING and CONFIRMED bookings can block the connector
+                if (existingBooking.getStatus() != BookingStatus.PENDING &&
+                        existingBooking.getStatus() != BookingStatus.CONFIRMED) {
                 continue;
-            }
-
-            /*
-             * Expired payment booking does not block connector
-             *
-             * If payment time has expired, ignore it.
-             */
-            if (existingBooking.getStatus()
-                    == BookingStatus.EXPIRED) {
-
-                continue;
-            }
-
-            /*
-             * PENDING booking:
-             *
-             * It blocks the connector only while
-             * payment expiry time has not passed.
-             */
-            if (existingBooking.getStatus()
-                    == BookingStatus.PENDING) {
-
-                if (existingBooking.getPaymentExpiresAt() != null &&
-                        existingBooking.getPaymentExpiresAt()
-                                .isBefore(now)) {
-
-                    continue;
                 }
-            }
 
-            LocalDateTime blockedStart =
+                // PENDING booking blocks only while payment is valid
+                if (existingBooking.getStatus() == BookingStatus.PENDING) {
+                if (existingBooking.getPaymentExpiresAt() == null ||
+                        !existingBooking.getPaymentExpiresAt().isAfter(now)) {
+                        continue;
+                }
+                }
+
+        LocalDateTime blockedStart =
                     existingBooking.getStartTime()
                             .minusMinutes(BOOKING_BUFFER_MINUTES);
 
-            LocalDateTime blockedEnd =
+        LocalDateTime blockedEnd =
                     existingBooking.getEndTime()
                             .plusMinutes(BOOKING_BUFFER_MINUTES);
 
-            boolean conflict =
+        boolean conflict =
                     newStart.isBefore(blockedEnd)
                             && newEnd.isAfter(blockedStart);
 
             if (conflict) {
 
-                throw new RuntimeException(
+                throw new BookingException(
                         "Connector is already booked for the selected time. "
                                 + "A 15-minute transition buffer is required."
                 );
@@ -469,25 +460,24 @@ public class BookingService {
 
                 Booking booking = bookingRepository.findById(bookingId)
                         .orElseThrow(() ->
-                                new RuntimeException("Booking not found"));
+                                new ResourceNotFoundException("Booking not found"));
 
                 if (!booking.getUser().getId().equals(currentUser.getId())) {
-                        throw new RuntimeException(
-                                "You are not allowed to confirm payment for this booking");
+                throw new AccessDeniedException(
+                        "You are not allowed to confirm payment for this booking");
                 }
 
                 if (booking.getStatus() == BookingStatus.CANCELLED) {
-                        throw new RuntimeException("Booking is cancelled");
+                throw new BookingException("Booking is cancelled");
                 }
 
                 if (booking.getStatus() == BookingStatus.EXPIRED) {
-                        throw new RuntimeException("Booking payment has expired");
+                throw new BookingException("Booking payment has expired");
                 }
 
                 if (booking.getPaymentStatus() == PaymentStatus.PAID) {
-                        throw new RuntimeException("Payment is already confirmed");
+                throw new BookingException("Payment is already confirmed");
                 }
-
                 LocalDateTime now = LocalDateTime.now();
 
                 if (booking.getPaymentExpiresAt() != null &&

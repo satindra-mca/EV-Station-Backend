@@ -37,4 +37,6 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     List<Booking> findAllByConnector_Charger_ChargingStation_IdOrderByStartTimeAsc(
         Long stationId
     );
+
+    List<Booking> findAllByConnector_Id(Long connectorId);
 }
