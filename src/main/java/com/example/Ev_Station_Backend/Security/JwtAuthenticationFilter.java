@@ -1,18 +1,24 @@
+
 package com.example.Ev_Station_Backend.Security;
 
-import com.example.Ev_Station_Backend.Service.JwtService;
+import com.example.Ev_Station_Backend.Enum.Role;
+import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.JwtException;
+
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 import java.io.IOException;
+import java.util.Collections;
 
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {
@@ -31,62 +37,55 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
             throws ServletException, IOException {
 
         String authHeader = request.getHeader("Authorization");
-        System.out.println("Authorization Header: " + authHeader);
 
-        // Authorization header નથી
+        // Continue without JWT authentication if Bearer token is absent.
         if (authHeader == null || !authHeader.startsWith("Bearer ")) {
             filterChain.doFilter(request, response);
             return;
         }
 
-        // "Bearer " પછીનો actual token
         String token = authHeader.substring(7);
 
         try {
+            // Verify JWT signature and parse claims once.
+            Claims claims = jwtService.extractAllClaims(token);
 
-            String email = jwtService.extractEmail(token);
-            System.out.println("JWT Email: " + email);
+            String email = claims.getSubject();
+            String roleClaim = claims.get("role", String.class);
 
-            String role = jwtService.extractRole(token);
-            System.out.println("JWT Role: " + role);
+            if (email != null
+                    && !email.isBlank()
+                    && roleClaim != null
+                    && SecurityContextHolder.getContext()
+                            .getAuthentication() == null) {
 
-            // User already authenticated છે કે નહીં
-            if (email != null &&
-                    SecurityContextHolder.getContext().getAuthentication() == null) {
+                // Allow only roles defined in the application.
+                Role role = Role.valueOf(roleClaim);
 
-                        
+                SimpleGrantedAuthority authority =
+                        new SimpleGrantedAuthority(
+                                "ROLE_" + role.name()
+                        );
 
-                if (!jwtService.isTokenExpired(token)) {
+                UsernamePasswordAuthenticationToken authentication =
+                        new UsernamePasswordAuthenticationToken(
+                                email,
+                                null,
+                                Collections.singletonList(authority)
+                        );
 
-
-                org.springframework.security.core.authority.SimpleGrantedAuthority authority =
-                    new org.springframework.security.core.authority.SimpleGrantedAuthority(
-                            "ROLE_" + role
+                authentication.setDetails(
+                        new WebAuthenticationDetailsSource()
+                                .buildDetails(request)
                 );
-                    
 
-                    UsernamePasswordAuthenticationToken authentication =
-                            new UsernamePasswordAuthenticationToken(
-                                    email,
-                                    null,
-                                    java.util.Collections.singletonList(authority)
-                            );
-
-                    authentication.setDetails(
-                            new WebAuthenticationDetailsSource()
-                                    .buildDetails(request)
-                    );
-
-                    SecurityContextHolder.getContext()
-                            .setAuthentication(authentication);
-                            System.out.println("JWT Authentication Set Successfully");
-                }
+                SecurityContextHolder.getContext()
+                        .setAuthentication(authentication);
             }
 
-        } catch (Exception e) {
-
-            // Invalid JWT → authentication set નહીં થાય
-            System.out.println("Invalid JWT token: " + e.getMessage());
+        } catch (JwtException | IllegalArgumentException e) {
+            // Invalid, expired, or unsupported JWT.
+            // Continue without JWT authentication.
         }
 
         filterChain.doFilter(request, response);

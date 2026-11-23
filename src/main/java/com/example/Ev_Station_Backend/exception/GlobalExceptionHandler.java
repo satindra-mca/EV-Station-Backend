@@ -1,13 +1,15 @@
+
 package com.example.Ev_Station_Backend.exception;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.BadCredentialsException;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
-import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.method.annotation.HandlerMethodValidationException;
 import org.springframework.web.server.ResponseStatusException;
-import org.springframework.security.access.AccessDeniedException;
 
 import java.time.LocalDateTime;
 import java.util.HashMap;
@@ -16,6 +18,7 @@ import java.util.Map;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    // 404 - Resource not found
     @ExceptionHandler(ResourceNotFoundException.class)
     public ResponseEntity<Map<String, Object>> handleResourceNotFound(
             ResourceNotFoundException ex) {
@@ -33,9 +36,10 @@ public class GlobalExceptionHandler {
         );
     }
 
+    // 400 - Booking-related errors
     @ExceptionHandler(BookingException.class)
-        public ResponseEntity<Map<String, Object>> handleBookingException(
-                BookingException ex) {
+    public ResponseEntity<Map<String, Object>> handleBookingException(
+            BookingException ex) {
 
         Map<String, Object> response = new HashMap<>();
 
@@ -48,8 +52,27 @@ public class GlobalExceptionHandler {
                 response,
                 HttpStatus.BAD_REQUEST
         );
-        }
+    }
 
+    // 401 - Invalid login credentials
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<Map<String, Object>> handleBadCredentialsException(
+            BadCredentialsException ex) {
+
+        Map<String, Object> response = new HashMap<>();
+
+        response.put("timestamp", LocalDateTime.now());
+        response.put("status", HttpStatus.UNAUTHORIZED.value());
+        response.put("error", "Unauthorized");
+        response.put("message", "Invalid email or password");
+
+        return new ResponseEntity<>(
+                response,
+                HttpStatus.UNAUTHORIZED
+        );
+    }
+
+    // 400 - Request body validation errors
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidationException(
             MethodArgumentNotValidException ex) {
@@ -77,6 +100,7 @@ public class GlobalExceptionHandler {
         );
     }
 
+    // 400 - Method parameter validation errors
     @ExceptionHandler(HandlerMethodValidationException.class)
     public ResponseEntity<Map<String, Object>> handleMethodValidationException(
             HandlerMethodValidationException ex) {
@@ -94,10 +118,10 @@ public class GlobalExceptionHandler {
         );
     }
 
-    
-        @ExceptionHandler(ResponseStatusException.class)
-        public ResponseEntity<Map<String, Object>> handleResponseStatusException(
-                ResponseStatusException ex) {
+    // Preserve HTTP status and reason from service exceptions
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<Map<String, Object>> handleResponseStatusException(
+            ResponseStatusException ex) {
 
         HttpStatus status = HttpStatus.valueOf(
                 ex.getStatusCode().value()
@@ -111,26 +135,31 @@ public class GlobalExceptionHandler {
         response.put("message", ex.getReason());
 
         return new ResponseEntity<>(response, status);
-        }
+    }
 
-        @ExceptionHandler(AccessDeniedException.class)
-        public ResponseEntity<Map<String, Object>> handleAccessDeniedException(
-                AccessDeniedException ex) {
+    // 403 - Access denied
+    @ExceptionHandler(AccessDeniedException.class)
+    public ResponseEntity<Map<String, Object>> handleAccessDeniedException(
+            AccessDeniedException ex) {
 
         Map<String, Object> response = new HashMap<>();
 
         response.put("timestamp", LocalDateTime.now());
         response.put("status", HttpStatus.FORBIDDEN.value());
         response.put("error", "Forbidden");
-        response.put("message", "You are not allowed to access this resource");
+        response.put(
+                "message",
+                "You are not allowed to access this resource"
+        );
 
         return new ResponseEntity<>(
                 response,
                 HttpStatus.FORBIDDEN
         );
-        }
+    }
 
-
+    // 500 - Unexpected server errors
+    // Do not expose internal exception details to API clients
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGeneralException(
             Exception ex) {
@@ -138,9 +167,15 @@ public class GlobalExceptionHandler {
         Map<String, Object> response = new HashMap<>();
 
         response.put("timestamp", LocalDateTime.now());
-        response.put("status", HttpStatus.INTERNAL_SERVER_ERROR.value());
+        response.put(
+                "status",
+                HttpStatus.INTERNAL_SERVER_ERROR.value()
+        );
         response.put("error", "Internal Server Error");
-        response.put("message", ex.getMessage());
+        response.put(
+                "message",
+                "An unexpected error occurred. Please try again later."
+        );
 
         return new ResponseEntity<>(
                 response,
