@@ -1,298 +1,1292 @@
-﻿# EV Station Finder & Slot Booking â€” Backend
+﻿# EV Station Finder & Slot Booking - Backend
+## 📌 Project Overview
+EV Station Finder & Slot Booking is a Spring Boot backend application for managing electric vehicle charging stations and charging-slot bookings.
 
-**MCA Semester 3 project** | Spring Boot REST API | Android frontend integration in progress
+The backend provides REST APIs for:
 
-Repository: https://github.com/satindra-mca/EV-Station-Backend
-Branch: `main` | Documentation baseline: commit `0d453bd` (23 November 2026)
-## Overview
+* User registration and login
 
-This backend supports EV charging-station discovery and connector-based slot bookings. It provides JWT authentication, role-based access for `USER`, `OWNER`, and `ADMIN`, station/charger/connector management, nearby search, owner dashboards, and a simulated advance-payment and cancellation workflow. The Android application (Java/XML) is a separate frontend development phase.
+* JWT-based authentication
 
-**Project status:** Backend MVP checkpoint; not production-ready. The payment endpoint confirms an amount in application logic; it does **not** charge a card, call a payment gateway, or transfer refunds.
+* Role-based authorization
 
-## Technology
+* Charging station management
 
-- Java 17, Spring Boot 4.1.0, Spring Security, JWT (JJWT), Spring Data JPA/Hibernate
-- MySQL (`ev_station`), Maven Wrapper, Lombok, Apache Commons CSV
-- Postman for manual API verification; Git/GitHub for version control
+* Charger management
 
-## Architecture and source layout
+* Connector management
 
+* Charger pricing management
+
+* Nearby charging station search
+
+* EV charging slot booking
+
+* Booking availability validation
+
+* Advance payment confirmation
+
+* Payment expiry handling
+
+* Booking cancellation
+
+* Cancellation charge calculation
+
+* Refund calculation
+
+* Booking status and payment status management
+
+* Gujarat BEE charging-station dataset import
+
+* Centralized exception handling
+* Owner account creation and station assignment
+* Owner charger and connector management
+* Owner booking dashboard (all / today / tomorrow)
+* Booking history and booking detail APIs
+
+---
+## 🛠️ Technology Stack
+| Technology         | Version / Purpose              |
+
+| ------------------ | ------------------------------ |
+
+| Java               | 17                             |
+
+| Spring Boot        | 4.1.0                          |
+
+| Spring Data JPA    | Database persistence           |
+
+| Hibernate          | ORM                            |
+
+| MySQL              | Relational Database            |
+
+| Spring Security    | Authentication & Authorization |
+
+| JJWT               | 0.12.6                         |
+
+| Maven              | Build & Dependency Management  |
+
+| Lombok             | Reduce Boilerplate Code        |
+
+| Apache Commons CSV | CSV Dataset Processing         |
+
+| Postman            | API Testing                    |
+
+---
+## 🏗️ System Architecture
 ```text
-Android client / Postman
-        |
-Spring Security + JWT filter
-        |
-Controller -> Service -> Repository -> JPA/Hibernate -> MySQL
-                   |
-              DTO / Entity / Enum / Exception
+
+                    Client / Frontend / Postman
+
+                              |
+
+                              v
+
+                    +-------------------+
+
+                    | Controller Layer  |
+
+                    +-------------------+
+
+                              |
+
+                              v
+
+                    +-------------------+
+
+                    |  Service Layer    |
+
+                    +-------------------+
+
+                              |
+
+                              v
+
+                    +-------------------+
+
+                    | Repository Layer  |
+
+                    +-------------------+
+
+                              |
+
+                              v
+
+                    +-------------------+
+
+                    | JPA / Hibernate   |
+
+                    +-------------------+
+
+                              |
+
+                              v
+
+                    +-------------------+
+
+                    |      MySQL        |
+
+                    +-------------------+
+
 ```
 
-Main Java package: `com.example.Ev_Station_Backend` (retain actual case).
+### Architecture Layers
+**Controller Layer**
 
+Handles HTTP requests and exposes REST APIs.
+
+**Service Layer**
+
+Contains application and business logic.
+
+**Repository Layer**
+
+Handles database operations using Spring Data JPA.
+
+**Entity Layer**
+
+Represents database tables and their relationships.
+
+**DTO Layer**
+
+Used for transferring request and response data between the client and backend.
+
+**Security Layer**
+
+Handles JWT-based authentication and request authentication.
+
+**Exception Layer**
+
+Provides centralized exception handling for application errors.
+
+---
+# 📂 Project Structure
 ```text
 src/main/java/com/example/Ev_Station_Backend/
-â”œâ”€â”€ Controller/
-â”‚   â”œâ”€â”€ admin/      (AdminOwnerController, BEEImportController)
-â”‚   â”œâ”€â”€ auth/       (AuthController)
-â”‚   â”œâ”€â”€ booking/    (BookingController)
-â”‚   â”œâ”€â”€ charger/    (ChargerController)
-â”‚   â”œâ”€â”€ connector/  (ConnectorController)
-â”‚   â”œâ”€â”€ owner/      (OwnerController, OwnerBookingController,
-â”‚   â”‚                OwnerChargerController, OwnerConnectorController)
-â”‚   â”œâ”€â”€ station/    (ChargingStationController)
-â”‚   â””â”€â”€ user/       (UserController)
-â”œâ”€â”€ Service/
-â”‚   â”œâ”€â”€ admin/ auth/ booking/ charger/ connector/
-â”‚   â””â”€â”€ owner/ station/ user/
-â”œâ”€â”€ dto/
-â”‚   â”œâ”€â”€ admin/ auth/ booking/ charger/ connector/
-â”‚   â””â”€â”€ owner/ station/ user/
-â”œâ”€â”€ Repository/
-â”œâ”€â”€ entity/
-â”œâ”€â”€ Enum/
-â”œâ”€â”€ Security/       (JwtAuthenticationFilter, JwtService)
-â”œâ”€â”€ config/         (SecurityConfig)
-â””â”€â”€ exception/      (GlobalExceptionHandler and domain exceptions)
+├── config/
+│   └── SecurityConfig.java
+├── Controller/
+│   ├── admin/       (AdminOwnerController, BEEImportController)
+│   ├── auth/        (AuthController)
+│   ├── booking/     (BookingController)
+│   ├── charger/     (ChargerController)
+│   ├── connector/   (ConnectorController)
+│   ├── owner/       (OwnerController, OwnerBookingController,
+│   │                 OwnerChargerController, OwnerConnectorController)
+│   ├── station/     (ChargingStationController)
+│   └── user/        (UserController)
+├── Service/
+│   ├── admin/  auth/  booking/  charger/  connector/
+│   └── owner/  station/  user/
+├── dto/
+│   ├── admin/  auth/  booking/  charger/  connector/
+│   └── owner/  station/  user/
+├── Repository/
+├── entity/
+├── Enum/
+├── Security/
+│   ├── JwtAuthenticationFilter.java
+│   └── JwtService.java
+└── exception/
+    ├── GlobalExceptionHandler.java
+    ├── BookingException.java
+    └── ResourceNotFoundException.java
 ```
 
-`TestController` and the old flat Controller/Service/DTO package layout were removed or reorganized in `0d453bd`.
+The backend was reorganized into feature-based packages in commit `0d453bd`. The old `TestController` is no longer part of the current source layout.
 
-## Authentication and authorization
+---
+# 🚀 Main Features
+## 1. User Authentication
+The backend supports:
 
-`POST /api/auth/register` and `POST /api/auth/login` are public. All other mapped endpoints require authentication under the current `SecurityConfig`.
+* User registration
 
-Use the login response token in protected requests:
+* User login
 
+* JWT token generation
+
+* JWT authentication
+
+* Role-based authorization
+
+### Authentication APIs
 ```http
-Authorization: Bearer <JWT_TOKEN>
-```
 
-| Route group | Access in current security configuration |
-| --- | --- |
-| `/api/auth/register`, `/api/auth/login` | Public |
-| `/api/admin/**`, `/api/users/**` | `ADMIN` |
-| `/api/owner/**` | `OWNER` |
-| `POST`, `PUT`, `PATCH`, `DELETE` under `/api/stations/**`, `/api/chargers/**`, `/api/connectors/**` | `ADMIN` (where corresponding endpoint exists) |
-| `POST /api/import/bee` | `ADMIN` |
-| Station/charger/connector GET APIs and `/api/bookings/**` | Authenticated; booking service also checks booking ownership for relevant actions |
-
-The JWT filter authenticates valid tokens; stateless sessions are configured. Unauthorized requests return 401; authenticated requests lacking the required role return 403. `ADMIN` is not automatically an `OWNER` for `/api/owner/**` under the present rules.
-
-### Authentication request examples
-
-```http
 POST /api/auth/register
-Content-Type: application/json
 
-{"name":"Example User","email":"user@example.com","mobile":"9999999999","password":"example-password"}
+POST /api/auth/login
+
 ```
+
+---
+## 2. Charging Station Management
+Charging stations contain information such as:
+
+* CPO Name
+
+* Government / Private classification
+
+* State
+
+* District
+
+* City / Village
+
+* Location
+
+* Latitude
+
+* Longitude
+
+* Source
+
+* Google Place ID
+
+* Status
+
+* Created Time
+
+* Updated Time
+
+---
+## 3. Charger Management
+Each charging station can contain multiple chargers.
+
+A charger stores:
+
+* Charger Type
+
+* Charger Rating
+
+* Connector Rating
+
+* Number of Connectors
+
+* BEE Source Index
+
+* Associated Charging Station
+
+### Relationship
+```text
+
+Charging Station
+
+       |
+
+       | 1 : N
+
+       v
+
+    Charger
+
+```
+
+---
+## 4. Connector Management
+Connectors belong to chargers.
+
+Each connector contains:
+
+* Connector Number
+
+* Status
+
+* Associated Charger
+
+### Relationship
+```text
+
+Charger
+
+   |
+
+   | 1 : N
+
+   v
+
+Connector
+
+```
+
+A unique constraint is applied to:
+
+```text
+
+charger_id + connector_number
+
+```
+
+This prevents duplicate connector numbers for the same charger.
+
+---
+## 5. Charger Pricing
+The project maintains pricing based on charger type.
+
+The `ChargerPricing` entity contains:
+
+* Charger Type
+
+* Price Per kWh
+
+Each charger type has a unique pricing entry.
+
+The booking service uses the configured charger pricing to calculate the estimated booking amount.
+
+---
+## 6. Nearby Charging Station Search
+The backend supports searching charging stations using:
+
+* Latitude
+
+* Longitude
+
+* Radius
+
+### Example
+```http
+
+GET /api/stations/nearby?latitude=23.0225&longitude=72.5714&radius=10
+
+```
+
+The API returns charging stations available within the requested search radius.
+
+---
+## 7. BEE Dataset Import
+The project uses a Gujarat EV charging-station dataset from BEE. The import endpoint requires the `ADMIN` role.
+
+### Dataset Location
+```text
+
+src/main/resources/data/Gujarat_EV_Charging_Stations_BEE_Cleaned.csv
+
+```
+
+### Import API
+```http
+
+POST /api/import/bee
+
+```
+
+The `Charger` entity contains a unique:
+
+```text
+
+beeSourceIndex
+
+```
+
+This identifies the source row from the BEE CSV during import and helps prevent duplicate imports.
+
+---
+## 8. Booking System
+Users can create charging-slot bookings for a connector.
+
+A booking contains:
+
+* User
+
+* Connector
+
+* Start Time
+
+* End Time
+
+* Estimated Amount
+
+* Advance Amount
+
+* Final Amount
+
+* Booking Status
+
+* Payment Status
+
+* Payment Expiry Time
+
+* Cancellation Charge
+
+* Refund Amount
+
+* Created Time
+
+* Cancelled Time
+
+### Booking API
+```http
+
+POST /api/bookings
+
+```
+
+### Booking Availability
+The booking system checks whether the selected connector is already booked for the requested time.
+
+A transition buffer is also applied between bookings to reduce scheduling conflicts.
+
+---
+## 9. Advance Payment
+The booking system supports an advance-payment flow to reduce unpaid or fake bookings.
+
+### Booking Flow
+```text
+
+Create Booking
+
+      |
+
+      v
+
+Calculate Estimated Amount
+
+      |
+
+      v
+
+Calculate Advance Amount
+
+      |
+
+      v
+
+Payment Pending
+
+      |
+
+      +----------------------+
+
+      |                      |
+
+      | Payment Timeout      | Payment Successful
+
+      v                      v
+
+   EXPIRED               CONFIRMED
+
+```
+
+The booking stores:
+
+```text
+
+estimatedAmount
+
+advanceAmount
+
+finalAmount
+
+paymentStatus
+
+paymentExpiresAt
+
+```
+
+### Payment Confirmation API
+```http
+
+POST /api/bookings/{bookingId}/payment
+
+```
+
+The payment request contains the advance payment amount.
+
+When the correct advance payment is confirmed:
+
+```text
+
+PaymentStatus = PAID
+
+BookingStatus = CONFIRMED
+
+paymentExpiresAt = null
+
+```
+
+If the payment is not completed before the payment expiry time, the booking can expire.
+
+---
+## 10. Booking Cancellation
+The booking system supports cancellation of bookings.
+
+### Cancellation API
+```http
+
+POST /api/bookings/{bookingId}/cancel
+
+```
+
+Cancellation processing can update:
+
+* Booking Status
+
+* Payment Status
+
+* Cancellation Charge
+
+* Refund Amount
+
+* Cancellation Time
+
+### Cancellation Flow
+```text
+
+Booking
+
+   |
+
+   v
+
+Check Booking Status
+
+   |
+
+   v
+
+Check Payment Status
+
+   |
+
+   v
+
+Calculate Cancellation Charge
+
+   |
+
+   v
+
+Calculate Refund Amount
+
+   |
+
+   v
+
+Update Booking
+
+   |
+
+   v
+
+CANCELLED
+
+```
+
+For paid bookings, the cancellation logic considers the remaining time before the booking starts to determine the applicable cancellation charge and refund amount (see the detailed rules in Section 16).
+
+For pending unpaid bookings, cancellation does not require a refund because no advance payment has been completed.
+
+---
+## 11. Booking Status
+The project supports the following booking statuses:
+
+```text
+
+PENDING
+
+CONFIRMED
+
+CANCELLED
+
+COMPLETED
+
+EXPIRED
+
+```
+
+### Status Meaning
+| Status    | Description                                             |
+
+| --------- | ------------------------------------------------------- |
+
+| PENDING   | Booking created but advance payment is pending          |
+
+| CONFIRMED | Advance payment has been successfully confirmed         |
+
+| CANCELLED | Booking has been cancelled                              |
+
+| COMPLETED | Booking has been completed                              |
+
+| EXPIRED   | Booking expired before successful payment or completion |
+
+---
+## 12. Payment Status
+The project supports the following payment statuses:
+
+```text
+
+PENDING
+
+PAID
+
+FAILED
+
+REFUNDED
+
+PARTIALLY_REFUNDED
+
+CANCELLED
+
+```
+
+### Status Meaning
+| Status             | Description                                                                                     |
+
+| ------------------ | ----------------------------------------------------------------------------------------------- |
+
+| PENDING            | Payment has not yet been completed                                                              |
+
+| PAID               | Advance payment was successfully confirmed                                                      |
+
+| FAILED             | Payment attempt was not successful                                                              |
+
+| REFUNDED           | Payment amount was fully refunded                                                               |
+
+| PARTIALLY_REFUNDED | Part of the payment amount was refunded                                                         |
+
+| CANCELLED          | Payment was cancelled because the associated booking was cancelled or payment was not completed |
+
+---
+## 13. Owner Management
+
+The `OWNER` role manages the charging station assigned by an administrator.
+
+* View the assigned station
+* View all station bookings, today's bookings, and tomorrow's bookings
+* Create, view, update, and delete chargers at the assigned station
+* Create, view, update, and delete connectors belonging to that station
+* Access checks prevent an owner from managing another owner's station resources
+
+### Owner Workflow
+
+```text
+ADMIN creates OWNER account
+          |
+          v
+ADMIN assigns a charging station
+          |
+          v
+OWNER logs in with JWT
+          |
+          v
+View station / Manage chargers and connectors / View bookings
+```
+
+An owner without an assigned station cannot use station-specific management features. The current assignment policy limits an owner to one station.
+
+---
+
+## 14. Admin and Role-Based Access
+
+The backend has three roles:
+
+| Role | Responsibilities |
+| --- | --- |
+| `USER` | Search stations, view chargers/connectors, create and manage own bookings |
+| `OWNER` | Manage chargers/connectors and view bookings for the assigned station |
+| `ADMIN` | Create owner accounts, assign stations, manage administrative resources, import BEE data |
+
+Registration and login are public. Other routes require a valid JWT. `/api/admin/**` and `/api/users/**` require `ADMIN`; `/api/owner/**` requires `OWNER`. Administrative station/charger/connector changes and BEE import also require `ADMIN`.
+
+---
+
+## 15. Booking History and Booking Details
+
+Users can retrieve their own bookings and inspect an individual booking.
 
 ```http
-POST /api/auth/login
-Content-Type: application/json
-
-{"email":"user@example.com","password":"example-password"}
+GET /api/bookings/my
+GET /api/bookings/{bookingId}
 ```
 
-Login response fields: `message`, `token`, `userId`, `name`, `email`, `role`. Registration response includes `id`, `name`, `email`, `mobile`, `role`. Invalid credentials return 401; duplicate registration email returns 409.
+Booking history includes the station, charger, connector, scheduled time, amounts, booking/payment statuses, and cancellation/refund information. Booking detail access checks ownership.
 
-## API reference
+---
 
-The following routes were checked against the controllers at commit `0d453bd`. `{id}` denotes a path parameter. `GET` endpoints are not necessarily publicly accessible: see the security table above.
+## 16. Booking Validation and Payment Rules
 
-### Authentication
+The booking service validates that the start time is in the future, the end time follows the start time, and the connector is `AVAILABLE`. It locks the connector during creation and checks conflicts with confirmed bookings and unexpired pending bookings.
 
-| Method | Endpoint | Purpose |
-| --- | --- | --- |
-| POST | `/api/auth/register` | Register user |
-| POST | `/api/auth/login` | Authenticate and receive JWT |
+* **Transition buffer:** 15 minutes between conflicting bookings
+* **Estimated energy:** 5 kWh per booked hour
+* **Estimated amount:** estimated energy multiplied by configured charger-type price per kWh
+* **Advance amount:** 20% of estimated amount
+* **Payment expiry:** 15 minutes after creating a pending booking
+* **Payment integration:** simulated confirmation only; no external gateway or actual transfer
 
-### Charging stations
+### Cancellation and Refund Rules
 
-| Method | Endpoint | Purpose |
-| --- | --- | --- |
-| POST | `/api/stations` | Create station (ADMIN) |
-| GET | `/api/stations` | List stations |
-| GET | `/api/stations/{id}` | Station detail |
-| GET | `/api/stations/nearby?latitude=21.1702&longitude=72.8311&radius=10` | Stations within radius in km |
-| DELETE | `/api/stations/{id}` | Delete station (ADMIN) |
-
-Nearby search validates latitude (-90 to 90), longitude (-180 to 180), and radius (>0, up to 100 km). **The current controller does not expose a PUT station endpoint.**
-
-### Chargers and connectors (administrative endpoints)
-
-| Method | Endpoint | Purpose |
-| --- | --- | --- |
-| POST | `/api/chargers` | Create charger |
-| GET | `/api/chargers` | List chargers |
-| GET | `/api/chargers/{id}` | Charger detail |
-| DELETE | `/api/chargers/{id}` | Delete charger |
-| POST | `/api/connectors` | Create connector |
-| GET | `/api/connectors` | List connectors |
-| GET | `/api/connectors/{id}` | Connector detail |
-| DELETE | `/api/connectors/{id}` | Delete connector |
-
-Mutating endpoints in these two groups require `ADMIN`. No PUT endpoints are defined in these two controllers at the documented commit; owner-specific updates use `/api/owner/**`.
-
-### Booking (authenticated)
-
-| Method | Endpoint | Purpose |
-| --- | --- | --- |
-| POST | `/api/bookings` | Create a booking |
-| POST | `/api/bookings/{bookingId}/payment` | Confirm simulated advance payment |
-| POST | `/api/bookings/{bookingId}/cancel` | Cancel a booking |
-| GET | `/api/bookings/my` | Logged-in user's booking history |
-| GET | `/api/bookings/{bookingId}` | Booking details, subject to ownership check |
-
-Create booking:
-
-```json
-{"connectorId":1,"startTime":"2026-12-01T10:00:00","endTime":"2026-12-01T11:00:00"}
-```
-
-Payment confirmation body: `{"amount":15.00}`. The value must match the `advanceAmount` returned for **that** booking; `15.00` is illustrative, not a fixed price. Cancellation body: `{"reason":"Change of plans"}`. Booking dates must be in the future when submitted.
-
-Booking creation returns fields including `id`, `userId`, `connectorId`, `startTime`, `endTime`, `estimatedAmount`, `advanceAmount`, `finalAmount`, `status`, `paymentStatus`, `paymentExpiresAt`, `cancellationCharge`, `refundAmount`, `createdAt`, `cancelledAt`.
-
-### Owner (OWNER role, assigned station required)
-
-| Method | Endpoint | Purpose |
-| --- | --- | --- |
-| GET | `/api/owner/station` | Assigned station summary |
-| GET | `/api/owner/bookings` | All bookings at owner's station |
-| GET | `/api/owner/bookings/today` | Today's bookings |
-| GET | `/api/owner/bookings/tomorrow` | Tomorrow's bookings |
-| GET | `/api/owner/chargers` | Owner station chargers |
-| GET | `/api/owner/chargers/{id}` | Owner charger detail |
-| POST | `/api/owner/chargers` | Add charger |
-| PUT | `/api/owner/chargers/{id}` | Update charger |
-| DELETE | `/api/owner/chargers/{id}` | Delete charger, subject to booking references |
-| GET | `/api/owner/connectors` | Owner station connectors |
-| GET | `/api/owner/connectors/{id}` | Owner connector detail |
-| POST | `/api/owner/connectors` | Add connector |
-| PUT | `/api/owner/connectors/{id}` | Update connector |
-| DELETE | `/api/owner/connectors/{id}` | Delete connector, subject to booking references |
-
-Owner operations check station ownership. The owner charger request DTO currently has `chargerType`, `chargerRating`, `connectorRating`, `noOfConnector`, and `chargingStationId`; the service derives the actual station from the logged-in owner rather than trusting the supplied station ID. Connector request fields: `connectorNumber`, `status`, `chargerId`.
-
-### Admin
-
-| Method | Endpoint | Purpose |
-| --- | --- | --- |
-| POST | `/api/admin/owners` | Create owner account |
-| PUT | `/api/admin/owners/{ownerId}/station/{stationId}` | Assign station to owner |
-| POST | `/api/users` | Create user |
-| GET | `/api/users` | List users |
-| GET | `/api/users/{id}` | Get user |
-| DELETE | `/api/users/{id}` | Delete user |
-| POST | `/api/import/bee` | Import BEE charging-station CSV |
-
-The BEE import controller is under `/api/import`, not `/api/admin`, but its POST route is explicitly ADMIN-only in `SecurityConfig`.
-
-## Booking business rules
-
-These rules are derived from the `BookingService` implementation at the documented commit.
-
-- A booking must start in the future, end after it starts, and use a connector with status `AVAILABLE`.
-- The service locks the connector row during creation and checks conflicts with existing `PENDING` (not expired) and `CONFIRMED` bookings.
-- A **15-minute transition buffer** is enforced around blocking bookings.
-- Estimated energy uses **5 kWh per booked hour**; the price is looked up in `ChargerPricing` by charger type. Estimated amount = estimated energy Ã— configured price per kWh.
-- Advance payment is **20%** of estimated amount. A new booking starts as `PENDING` and has a **15-minute payment confirmation window**.
-- The payment confirmation API checks booking ownership, status, expiry, and exact advance amount; a valid confirmation sets booking `CONFIRMED` and payment `PAID`.
-- Pending unpaid cancellation has no refund. Paid cancellations before the booking start use the following advance-payment refund rules:
-
-| Time remaining before start | Cancellation charge on advance | Refund of advance |
+| Time before booking start | Charge on paid advance | Refund of paid advance |
 | --- | --- | --- |
 | At least 8 hours | 0% | 100% |
-| At least 5 but less than 8 hours | 20% | 80% |
+| 5 to less than 8 hours | 20% | 80% |
 | Less than 5 hours, before start | 50% | 50% |
 
-Booking statuses: `PENDING`, `CONFIRMED`, `CANCELLED`, `COMPLETED`, `EXPIRED`. Payment statuses: `PENDING`, `PAID`, `FAILED`, `REFUNDED`, `PARTIALLY_REFUNDED`, `CANCELLED`.
+Unpaid pending bookings can be cancelled without a refund. These are application-level calculations, not real financial refunds.
 
-**Important:** Payment and refunds are internal status/amount calculations, not external financial transactions. A booking `COMPLETED` enum exists, but do not assume a complete charging-session completion workflow exists.
+---
 
-## Database and data import
+# 🗄️ Database Entities
+Main entities:
 
-Database: MySQL `ev_station`.
+* User
 
+* ChargingStation
+
+* Charger
+
+* Connector
+
+* ChargerPricing
+
+* Booking
+
+### Entity Relationships
+```text
+
+                    ChargingStation
+
+                           |
+
+                           | 1 : N
+
+                           v
+
+                        Charger
+
+                           |
+
+                           | 1 : N
+
+                           v
+
+                       Connector
+
+                           |
+
+                           | 1 : N
+
+                           v
+
+                        Booking
+
+```
+
+### User and Booking
+```text
+
+User
+
+ |
+
+ | 1 : N
+
+ v
+
+Booking
+
+```
+
+---
+# 🔌 API Documentation
+## Authentication APIs
+| Method | Endpoint             | Description                            |
+
+| ------ | -------------------- | -------------------------------------- |
+
+| POST   | `/api/auth/register` | Register a new user                    |
+
+| POST   | `/api/auth/login`    | Login and receive authentication token |
+
+## Charging Station APIs
+| Method | Endpoint               | Description                     |
+
+| ------ | ---------------------- | ------------------------------- |
+
+| POST   | `/api/stations`        | Create charging station         |
+
+| GET    | `/api/stations`        | Get all charging stations       |
+
+| GET    | `/api/stations/{id}`   | Get charging station by ID      |
+
+| GET    | `/api/stations/nearby` | Search nearby charging stations |
+
+| DELETE | `/api/stations/{id}`   | Delete charging station         |
+
+## Charger APIs
+| Method | Endpoint             | Description       |
+
+| ------ | -------------------- | ----------------- |
+
+| POST   | `/api/chargers`      | Create charger    |
+
+| GET    | `/api/chargers`      | Get all chargers  |
+
+| GET    | `/api/chargers/{id}` | Get charger by ID |
+
+| DELETE | `/api/chargers/{id}` | Delete charger    |
+
+## Connector APIs
+| Method | Endpoint               | Description         |
+
+| ------ | ---------------------- | ------------------- |
+
+| POST   | `/api/connectors`      | Create connector    |
+
+| GET    | `/api/connectors`      | Get all connectors  |
+
+| GET    | `/api/connectors/{id}` | Get connector by ID |
+
+| DELETE | `/api/connectors/{id}` | Delete connector    |
+
+## Booking APIs
+| Method | Endpoint                            | Description             |
+
+| ------ | ----------------------------------- | ----------------------- |
+
+| POST   | `/api/bookings`                     | Create booking          |
+
+| POST   | `/api/bookings/{bookingId}/payment` | Confirm advance payment |
+
+| POST   | `/api/bookings/{bookingId}/cancel`  | Cancel booking          |
+| GET    | `/api/bookings/my`                 | View own booking history |
+| GET    | `/api/bookings/{bookingId}`        | View own booking details |
+
+## Owner Station and Booking APIs
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| GET | `/api/owner/station` | View assigned charging station |
+| GET | `/api/owner/bookings` | View all station bookings |
+| GET | `/api/owner/bookings/today` | View today's bookings |
+| GET | `/api/owner/bookings/tomorrow` | View tomorrow's bookings |
+
+## Owner Charger APIs
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| GET | `/api/owner/chargers` | List own station chargers |
+| GET | `/api/owner/chargers/{id}` | Get charger details |
+| POST | `/api/owner/chargers` | Add charger |
+| PUT | `/api/owner/chargers/{id}` | Update charger |
+| DELETE | `/api/owner/chargers/{id}` | Delete charger if allowed |
+
+## Owner Connector APIs
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| GET | `/api/owner/connectors` | List own station connectors |
+| GET | `/api/owner/connectors/{id}` | Get connector details |
+| POST | `/api/owner/connectors` | Add connector |
+| PUT | `/api/owner/connectors/{id}` | Update connector |
+| DELETE | `/api/owner/connectors/{id}` | Delete connector if allowed |
+
+## Admin Owner APIs
+
+| Method | Endpoint | Description |
+| --- | --- | --- |
+| POST | `/api/admin/owners` | Create OWNER account |
+| PUT | `/api/admin/owners/{ownerId}/station/{stationId}` | Assign a station to an OWNER |
+
+## User APIs
+| Method | Endpoint          | Description    |
+
+| ------ | ----------------- | -------------- |
+
+| POST   | `/api/users`      | Create user    |
+
+| GET    | `/api/users`      | Get all users  |
+
+| GET    | `/api/users/{id}` | Get user by ID |
+
+| DELETE | `/api/users/{id}` | Delete user    |
+
+## BEE Dataset API
+| Method | Endpoint          | Description                         |
+
+| ------ | ----------------- | ----------------------------------- |
+
+| POST   | `/api/import/bee` | Import BEE charging-station dataset |
+
+
+---
+# 🗃️ Database Configuration
+The project uses MySQL.
+
+### Create Database
 ```sql
-CREATE DATABASE IF NOT EXISTS ev_station;
+
+CREATE DATABASE ev_station;
+
 ```
 
-Main entities: `User`, `ChargingStation`, `Charger`, `Connector`, `Booking`, `ChargerPricing`.
+Database configuration file:
 
 ```text
-ChargingStation 1 â”€â”€ * Charger 1 â”€â”€ * Connector 1 â”€â”€ * Booking
-User            1 â”€â”€ * Booking
-ChargingStation â”€â”€ Owner (User with OWNER role, assignment constraints)
+
+src/main/resources/application.properties
+
 ```
 
-A charger can have multiple numbered connectors; `(charger_id, connector_number)` is unique. BEE CSV import uses `beeSourceIndex` to track source rows.
-
-Dataset path (verify the file exists in the checked-out repository before import):
-
-```text
-src/main/resources/data/Gujarat_EV_Charging_Stations_BEE_Cleaned.csv
-```
-
-## Setup and run
-
-Requirements: Java 17, MySQL, Git, and network access for Maven dependencies. Maven Wrapper is included.
-
-```powershell
-git clone https://github.com/satindra-mca/EV-Station-Backend.git
-cd EV-Station-Backend
-java -version
-.\mvnw.cmd clean test
-.\mvnw.cmd spring-boot:run
-```
-
-Linux/macOS: replace `mvnw.cmd` with `./mvnw`.
-
-Configure `src/main/resources/application.properties` or your environment with the correct datasource settings. Example placeholders:
+Example:
 
 ```properties
+
 spring.datasource.url=jdbc:mysql://localhost:3306/ev_station
-spring.datasource.username=YOUR_MYSQL_USERNAME
-spring.datasource.password=YOUR_MYSQL_PASSWORD
+
+spring.datasource.username=YOUR_USERNAME
+
+spring.datasource.password=YOUR_PASSWORD
+
 ```
 
-Check the actual application's JWT secret and token configuration requirements before launching. **Never commit real passwords, JWT signing secrets, bearer tokens, or Google Maps keys.** Use local secrets/environment-specific configuration for development.
+> ****Security:**** Do not commit actual database passwords, JWT secrets, or API keys to GitHub.
 
-Build a package:
+---
+# ⚙️ Prerequisites
+Install the following:
 
+* Java 17
+
+* MySQL
+
+* Git
+
+The project includes Maven Wrapper, so Maven does not need to be installed separately.
+
+### Check Java
+```bash
+
+java -version
+
+```
+
+---
+# ▶️ How to Run
+## 1. Clone Repository
+```bash
+
+git clone https://github.com/satindra-mca/EV-Station-Backend.git
+
+```
+
+## 2. Open Project
+```bash
+
+cd EV-Station-Backend
+
+```
+
+## 3. Configure MySQL
+Create the database:
+
+```sql
+
+CREATE DATABASE ev_station;
+
+```
+
+Update the database username and password in:
+
+```text
+
+src/main/resources/application.properties
+
+```
+
+## 4. Run Application
+### Windows
 ```powershell
-.\mvnw.cmd clean package
+
+.\mvnw.cmd spring-boot:run
+
 ```
 
-## Testing and Android integration
+### Linux / macOS
+```bash
 
-Manual Postman scenarios previously checked include login, duplicate registration, JWT authorization, owner access controls, and booking/payment/cancellation cases. At the November 2026 checkpoint, `mvnw clean test` passed **one Spring context test**. This is **not** comprehensive automated integration-test coverage.
+./mvnw spring-boot:run
 
-For Android Studio:
+```
 
-- Emulator-to-host development base URL: `http://10.0.2.2:8080/` (assuming backend runs on host port 8080).
-- Physical device: use a reachable LAN address and ensure network/firewall access; do not use `localhost` to refer to the development computer from the phone.
-- Development-only cleartext HTTP requires appropriate Android network security configuration; deployed apps should use HTTPS.
-- Use `Authorization: Bearer <token>` for protected endpoints and handle 401/403 and booking validation errors in the UI.
-- Treat the backend controllers and DTOs as the authoritative API contract. There is no dedicated availability-calendar endpoint documented here: the booking service checks conflicts on booking creation.
+---
+# 🔨 Build Project
+### Windows
+```powershell
 
-## Known limitations and follow-up work
+.\mvnw.cmd clean package
 
-1. **No real payment gateway:** advance confirmation/refunds are application-level simulations.
-2. **Pricing consistency needs review:** booking calculations use the `ChargerPricing` table, while owner-created chargers currently set their separate `pricePerKwh` field to zero. Do not present owner charger pricing as authoritative booking pricing without reconciling these.
-3. **No comprehensive automated API suite:** add controller/security/integration tests for permissions, concurrency, payment expiry, and refunds.
-4. **No guaranteed live hardware availability:** connector status and booking schedules are database/application values, not verified live charging-station telemetry.
-5. **Frontend in progress:** Android Java/XML UI, Google Maps, GPS, and end-to-end device tests remain separate deliverables.
-6. **Configuration/security hardening:** review secrets handling, production HTTPS, logging, validation, and database migration strategy before deployment.
+```
 
-## Development history
+### Linux / macOS
+```bash
 
-- `cb1c2c3` â€” owner booking dashboard
-- `6a081c8` â€” booking validation and concurrency improvements
-- `0d453bd` â€” modular package organization and API security hardening
+./mvnw clean package
 
-## License and attribution
+```
 
-MCA Semester-3 academic project. Check repository license and BEE dataset attribution/usage terms before public redistribution; this README does not assert a license that has not been verified.
+---
+# 🧪 API Testing with Postman
+Recommended testing flow:
+
+```text
+
+1. Register User
+
+       |
+
+       v
+
+2. Login
+
+       |
+
+       v
+
+3. Receive JWT Token
+
+       |
+
+       v
+
+4. Use JWT Token for Protected APIs
+
+       |
+
+       v
+
+5. Find Charging Station
+
+       |
+
+       v
+
+6. Select Charger
+
+       |
+
+       v
+
+7. Select Connector
+
+       |
+
+       v
+
+8. Create Booking
+
+       |
+
+       v
+
+9. Confirm Advance Payment
+
+       |
+
+       v
+
+10. Booking Confirmed
+
+       |
+
+       +---- Cancel Booking ----> Refund / Cancellation Charge
+
+```
+
+---
+# 🔐 Security
+The backend uses:
+
+```text
+
+Spring Security
+
+       +
+
+JWT Authentication
+
+       +
+
+JwtAuthenticationFilter
+
+```
+
+JWT is used to authenticate requests.
+
+Role-based authorization is configured through:
+
+```text
+
+SecurityConfig.java
+
+```
+
+Protected APIs require a valid JWT token where configured by the security rules. An invalid/missing token generally results in HTTP 401; insufficient permissions result in HTTP 403.
+
+---
+# ⚠️ Exception Handling
+The project provides centralized exception handling using:
+
+```text
+
+GlobalExceptionHandler.java
+
+```
+
+Resource-specific errors are handled using:
+
+```text
+
+ResourceNotFoundException.java
+
+```
+
+Booking-specific business errors are handled using:
+
+```text
+
+BookingException.java
+
+```
+
+This allows the application to return structured error responses instead of exposing raw exceptions.
+
+---
+# 🌿 Git Development Modules
+The project has been developed incrementally using feature-based Git commits.
+
+```text
+
+SQL / Spring Boot Setup
+
+        |
+
+        v
+
+JWT Authentication
+
+        |
+
+        v
+
+Global Exception Handling
+
+        |
+
+        v
+
+Role-Based Authorization
+
+        |
+
+        v
+
+Charging Station & Charger
+
+        |
+
+        v
+
+BEE Dataset Import
+
+        |
+
+        v
+
+Nearby Station Search
+
+        |
+
+        v
+
+Connector Management
+
+        |
+
+        v
+
+Booking & Availability
+
+        |
+
+        v
+
+Advance Payment & Payment Expiry
+
+        |
+
+        v
+
+Payment & Booking Cancellation
+
+```
+
+---
+# 🔮 Future Scope
+Possible future enhancements:
+
+* Frontend / Android application integration
+
+* Real online payment gateway integration
+
+* Real-time charger availability
+
+* Improved booking management
+
+* User profile enhancements
+
+* Charging-session tracking
+
+* Additional station data integrations
+
+* Notification system for booking and payment events
+
+* Admin dashboard
+
+* Charging-session billing based on actual energy consumption
+* Comprehensive automated integration and security tests
+* Consistent pricing between charger records and the `ChargerPricing` table
+
+---
+# 📌 Project Status
+Current backend modules include:
+
+* User Authentication
+
+* JWT Authorization
+
+* Role-Based Authorization
+
+* Charging Stations
+
+* Chargers
+
+* Connectors
+
+* Charger Pricing
+
+* BEE Dataset Import
+
+* Nearby Station Search
+
+* Booking
+
+* Booking Availability Validation
+
+* Advance Payment
+
+* Payment Expiry
+
+* Booking Cancellation
+
+* Cancellation Charge
+
+* Refund Calculation
+
+* Exception Handling
+
+---
+# 👨‍💻 Author
+**MCA SEM-3 Project**
+
+**EV Station Finder & Slot Booking**
