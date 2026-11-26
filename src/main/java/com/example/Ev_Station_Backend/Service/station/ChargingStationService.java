@@ -13,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.security.access.AccessDeniedException;
 
 import java.util.List;
+import com.example.Ev_Station_Backend.exception.ResourceNotFoundException;
 
 @Service
 public class ChargingStationService {
@@ -35,10 +36,20 @@ public class ChargingStationService {
         return chargingStationRepository.findAll();
     }
 
-    // Get station by ID
+    /**
+     * Retrieves a charging station by its unique identifier.
+     *
+     * @param id charging station ID
+     * @return matching charging station
+     * @throws ResourceNotFoundException if the station does not exist
+     */
     public ChargingStation getStationById(Long id) {
+
         return chargingStationRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Charging station not found"));
+                .orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Charging station not found with ID: " + id
+                        ));
     }
 
     // Delete station
