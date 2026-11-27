@@ -6,6 +6,7 @@ import com.example.Ev_Station_Backend.entity.Charger;
 import com.example.Ev_Station_Backend.entity.ChargingStation;
 import com.example.Ev_Station_Backend.Service.charger.ChargerService;
 import com.example.Ev_Station_Backend.Service.station.ChargingStationService;
+import com.example.Ev_Station_Backend.Service.charger.ChargerPricingService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -13,20 +14,25 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import jakarta.validation.constraints.Positive;
+
 @RestController
 @RequestMapping("/api/chargers")
 public class ChargerController {
 
-    private final ChargerService chargerService;
-    private final ChargingStationService chargingStationService;
+        private final ChargerService chargerService;
+        private final ChargingStationService chargingStationService;
+        private final ChargerPricingService chargerPricingService;
 
-    public ChargerController(
-            ChargerService chargerService,
-            ChargingStationService chargingStationService) {
+        public ChargerController(
+                ChargerService chargerService,
+                ChargingStationService chargingStationService,
+                ChargerPricingService chargerPricingService) {
 
         this.chargerService = chargerService;
         this.chargingStationService = chargingStationService;
-    }
+        this.chargerPricingService = chargerPricingService;
+        }
 
     // Create Charger
     @PostMapping
@@ -54,19 +60,38 @@ public class ChargerController {
         );
     }
 
-    // Get All Chargers
-    @GetMapping
-    public ResponseEntity<List<ChargerResponse>> getAllChargers() {
+        /**
+         * Retrieves all chargers or chargers belonging to a specific station.
+         */
+        @GetMapping
+        public ResponseEntity<List<ChargerResponse>> getAllChargers(
 
-        List<Charger> chargers =
-                chargerService.getAllChargers();
+                @RequestParam(name = "stationId", required = false)
+                @Positive(message = "Station ID must be greater than zero")
+                Long stationId) {
+
+        List<Charger> chargers;
+
+        if (stationId != null) {
+
+                // Validate that the requested station exists.
+                chargingStationService.getStationById(stationId);
+
+                chargers = chargerService.getChargersByStationId(
+                        stationId
+                );
+
+        } else {
+
+                chargers = chargerService.getAllChargers();
+        }
 
         List<ChargerResponse> response = chargers.stream()
                 .map(this::convertToResponse)
                 .collect(Collectors.toList());
 
         return ResponseEntity.ok(response);
-    }
+        }
 
     // Get Charger By ID
     @GetMapping("/{id}")
@@ -90,19 +115,26 @@ public class ChargerController {
     }
 
     // Entity → Response DTO
-    private ChargerResponse convertToResponse(Charger charger) {
+        private ChargerResponse convertToResponse(Charger charger) {
 
-        ChargerResponse response =
-                new ChargerResponse();
+        ChargerResponse response = new ChargerResponse();
 
         response.setId(charger.getId());
         response.setChargerType(charger.getChargerType());
         response.setChargerRating(charger.getChargerRating());
         response.setConnectorRating(charger.getConnectorRating());
         response.setNoOfConnector(charger.getNoOfConnector());
+
         response.setChargingStationId(
-                charger.getChargingStation().getId());
+                charger.getChargingStation().getId()
+        );
+
+        response.setPricePerKwh(
+        chargerPricingService.getPricePerKwh(
+                charger.getChargerType()
+                )
+        );
 
         return response;
-    }
+        }
 }

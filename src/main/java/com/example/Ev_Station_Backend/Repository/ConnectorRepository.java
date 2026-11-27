@@ -3,7 +3,7 @@ package com.example.Ev_Station_Backend.Repository;
 import com.example.Ev_Station_Backend.entity.Connector;
 import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.*;
-import java.util.Optional;
+
 import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -17,6 +17,7 @@ public interface ConnectorRepository extends JpaRepository<Connector, Long> {
     );
 
     List<Connector> findAllByChargerChargingStationId(Long stationId);
+    List<Connector> findAllByChargerId(Long chargerId);
 
     @Lock(LockModeType.PESSIMISTIC_WRITE)
     @Query("SELECT c FROM Connector c WHERE c.id = :connectorId")

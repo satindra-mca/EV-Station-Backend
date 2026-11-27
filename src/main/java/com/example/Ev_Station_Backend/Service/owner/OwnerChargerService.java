@@ -10,7 +10,7 @@ import com.example.Ev_Station_Backend.dto.charger.ChargerResponse;
 import com.example.Ev_Station_Backend.entity.Charger;
 import com.example.Ev_Station_Backend.entity.ChargingStation;
 import com.example.Ev_Station_Backend.entity.User;
-
+import com.example.Ev_Station_Backend.Service.charger.ChargerPricingService;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -25,17 +25,20 @@ public class OwnerChargerService {
     private final ChargingStationRepository chargingStationRepository;
     private final UserRepository userRepository;
     private final BookingRepository bookingRepository;
+    private final ChargerPricingService chargerPricingService;
 
     public OwnerChargerService(
             ChargerRepository chargerRepository,
             ChargingStationRepository chargingStationRepository,
             UserRepository userRepository,
-            BookingRepository bookingRepository) {
+            BookingRepository bookingRepository,
+            ChargerPricingService chargerPricingService) {
 
         this.chargerRepository = chargerRepository;
         this.chargingStationRepository = chargingStationRepository;
         this.userRepository = userRepository;
         this.bookingRepository = bookingRepository;
+        this.chargerPricingService = chargerPricingService;
     }
 
     // Get all chargers belonging to the logged-in owner's station
@@ -74,7 +77,11 @@ public class OwnerChargerService {
         charger.setChargerRating(request.getChargerRating());
         charger.setConnectorRating(request.getConnectorRating());
         charger.setNoOfConnector(request.getNoOfConnector());
-        charger.setPricePerKwh(java.math.BigDecimal.ZERO);
+        charger.setPricePerKwh(
+        chargerPricingService.getPricePerKwh(
+                request.getChargerType()
+        )
+);
 
         // Never trust a station ID supplied by the client
         charger.setChargingStation(station);
@@ -98,6 +105,11 @@ public class OwnerChargerService {
         charger.setChargerRating(request.getChargerRating());
         charger.setConnectorRating(request.getConnectorRating());
         charger.setNoOfConnector(request.getNoOfConnector());
+        charger.setPricePerKwh(
+        chargerPricingService.getPricePerKwh(
+                request.getChargerType()
+        )
+);
 
         // Keep the existing station assignment unchanged
         Charger updatedCharger = chargerRepository.save(charger);
@@ -181,6 +193,11 @@ public class OwnerChargerService {
         response.setChargingStationId(
                 charger.getChargingStation().getId()
         );
+        response.setPricePerKwh(
+        chargerPricingService.getPricePerKwh(
+                charger.getChargerType()
+        )
+);
 
         return response;
     }

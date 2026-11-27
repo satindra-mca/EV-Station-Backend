@@ -3,7 +3,7 @@ package com.example.Ev_Station_Backend.Service.connector;
 import com.example.Ev_Station_Backend.Repository.ConnectorRepository;
 import com.example.Ev_Station_Backend.entity.Connector;
 import org.springframework.stereotype.Service;
-
+import com.example.Ev_Station_Backend.exception.ResourceNotFoundException;
 import java.util.List;
 
 @Service
@@ -23,6 +23,16 @@ public class ConnectorService {
     // Get all connectors
     public List<Connector> getAllConnectors() {
         return connectorRepository.findAll();
+    }
+
+    /**
+     * Retrieves connectors belonging to the specified charger.
+     */
+    public List<Connector> getConnectorsByChargerId(Long chargerId) {
+
+        return connectorRepository.findAllByChargerId(
+                chargerId
+        );
     }
 
     // Get connector by ID

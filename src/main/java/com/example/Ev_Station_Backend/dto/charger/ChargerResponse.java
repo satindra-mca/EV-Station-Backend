@@ -1,5 +1,7 @@
 package com.example.Ev_Station_Backend.dto.charger;
 
+import java.math.BigDecimal;
+
 public class ChargerResponse {
 
     private Long id;
@@ -8,8 +10,7 @@ public class ChargerResponse {
     private String connectorRating;
     private Integer noOfConnector;
     private Long chargingStationId;
-
-    // Getters and Setters
+    private BigDecimal pricePerKwh;
 
     public Long getId() {
         return id;
@@ -57,5 +58,13 @@ public class ChargerResponse {
 
     public void setChargingStationId(Long chargingStationId) {
         this.chargingStationId = chargingStationId;
+    }
+
+    public BigDecimal getPricePerKwh() {
+        return pricePerKwh;
+    }
+
+    public void setPricePerKwh(BigDecimal pricePerKwh) {
+        this.pricePerKwh = pricePerKwh;
     }
 }

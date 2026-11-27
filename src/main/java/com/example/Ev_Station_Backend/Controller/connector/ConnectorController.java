@@ -12,15 +12,23 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import com.example.Ev_Station_Backend.Service.charger.ChargerService;
+import jakarta.validation.constraints.Positive;
+
 @RestController
 @RequestMapping("/api/connectors")
 public class ConnectorController {
 
-    private final ConnectorService connectorService;
+        private final ConnectorService connectorService;
+        private final ChargerService chargerService;
 
-    public ConnectorController(ConnectorService connectorService) {
+        public ConnectorController(
+                ConnectorService connectorService,
+                ChargerService chargerService) {
+
         this.connectorService = connectorService;
-    }
+        this.chargerService = chargerService;
+        }
 
     @PostMapping
     public ResponseEntity<ConnectorResponse> createConnector(
@@ -50,17 +58,38 @@ public class ConnectorController {
         );
     }
 
-    @GetMapping
-    public ResponseEntity<List<ConnectorResponse>> getAllConnectors() {
+        /**
+         * Retrieves all connectors or connectors belonging to a specific charger.
+         */
+        @GetMapping
+        public ResponseEntity<List<ConnectorResponse>> getAllConnectors(
 
-        List<ConnectorResponse> response =
-                connectorService.getAllConnectors()
-                        .stream()
-                        .map(this::convertToResponse)
-                        .collect(Collectors.toList());
+                @RequestParam(name = "chargerId", required = false)
+                @Positive(message = "Charger ID must be greater than zero")
+                Long chargerId) {
+
+        List<Connector> connectors;
+
+        if (chargerId != null) {
+
+                // Validate that the requested charger exists.
+                chargerService.getChargerById(chargerId);
+
+                connectors = connectorService.getConnectorsByChargerId(
+                        chargerId
+                );
+
+        } else {
+
+                connectors = connectorService.getAllConnectors();
+        }
+
+        List<ConnectorResponse> response = connectors.stream()
+                .map(this::convertToResponse)
+                .collect(Collectors.toList());
 
         return ResponseEntity.ok(response);
-    }
+        }
 
     @GetMapping("/{id}")
     public ResponseEntity<ConnectorResponse> getConnectorById(
