@@ -11,6 +11,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import com.example.Ev_Station_Backend.Service.booking.BookingHistoryService;
 import com.example.Ev_Station_Backend.dto.booking.BookingHistoryResponse;
+import com.example.Ev_Station_Backend.dto.booking.BookingPreviewResponse;
+
 import java.util.List;
 
 @RestController
@@ -24,6 +26,20 @@ public class BookingController {
         this.bookingService = bookingService;
         this.bookingHistoryService = bookingHistoryService;
     }
+
+        /**
+         * Returns slot availability and estimated charges
+         * without creating a booking.
+         */
+        @PostMapping("/preview")
+        public ResponseEntity<BookingPreviewResponse> previewBooking(
+                @Valid @RequestBody BookingRequest request) {
+
+        BookingPreviewResponse response =
+                bookingService.previewBooking(request);
+
+        return ResponseEntity.ok(response);
+        }
 
     @PostMapping
                 public ResponseEntity<BookingResponse> createBooking(

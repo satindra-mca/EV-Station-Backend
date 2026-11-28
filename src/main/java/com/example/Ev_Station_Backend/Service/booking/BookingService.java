@@ -17,7 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.annotation.Isolation;
 import com.example.Ev_Station_Backend.exception.ResourceNotFoundException;
 import org.springframework.security.access.AccessDeniedException;
-
+import com.example.Ev_Station_Backend.dto.booking.BookingPreviewResponse;
 
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -33,6 +33,10 @@ import java.util.List;
 public class BookingService {
 
     private static final long BOOKING_BUFFER_MINUTES = 15;
+
+    private static final long MIN_BOOKING_DURATION_MINUTES = 30;
+
+
 
     /*
      * Business rules
@@ -57,6 +61,7 @@ public class BookingService {
     private final UserRepository userRepository;
     private final ConnectorRepository connectorRepository;
     private final ChargerPricingRepository chargerPricingRepository;
+
 
     public BookingService(
             BookingRepository bookingRepository,
@@ -90,51 +95,138 @@ public class BookingService {
                 .orElseThrow(() ->
                         new RuntimeException("User not found"));
     }
-
-    /*
-     * Create Booking
-     */
-    @Transactional(isolation = Isolation.READ_COMMITTED)
-    public Booking createBooking(BookingRequest request) {
-
-        // 1. Get logged-in user
-        User user = getCurrentUser();
-
-        // 2. Check connector exists
-        Connector connector = connectorRepository.findByIdForUpdate(
-                request.getConnectorId()
-        ).orElseThrow(() ->
-                new ResourceNotFoundException("Connector not found")
-        );
-
-        // 3. Validate booking time
-        LocalDateTime now = LocalDateTime.now();
+        /**
+         * Validates the requested booking time range.
+         */
+        private void validateBookingTime(
+                BookingRequest request,
+                LocalDateTime now) {
 
         if (!request.getStartTime().isAfter(now)) {
-        throw new BookingException(
-                "Booking start time must be in the future"
-        );
+
+                throw new BookingException(
+                        "Booking start time must be in the future"
+                );
         }
 
-        if (!request.getStartTime().isBefore(request.getEndTime())) {
-        throw new BookingException(
-                "Start time must be before end time"
-        );
+        if (!request.getStartTime()
+                .isBefore(request.getEndTime())) {
+
+                throw new BookingException(
+                        "Start time must be before end time"
+                );
         }
 
-        if (!"AVAILABLE".equalsIgnoreCase(connector.getStatus())) {
-        throw new BookingException(
-                "Connector is not available for booking"
+        Duration duration = Duration.between(
+                request.getStartTime(),
+                request.getEndTime()
         );
+
+        if (duration.compareTo(
+                Duration.ofMinutes(
+                        MIN_BOOKING_DURATION_MINUTES
+                )) < 0) {
+
+                throw new BookingException(
+                        "Minimum booking duration is 30 minutes"
+                );
+        }
         }
 
-        // 4. Get charger type
+        /**
+         * Validates whether the connector supports reservations.
+         *
+         * Current occupancy does not determine future slot
+         * availability. Booking overlap is checked separately.
+         */
+        private void validateConnectorStatus(
+                Connector connector) {
+
+        String status = connector.getStatus();
+
+        boolean supportedStatus =
+                "AVAILABLE".equalsIgnoreCase(status)
+                || "OCCUPIED".equalsIgnoreCase(status);
+
+        if (!supportedStatus) {
+
+                throw new BookingException(
+                        "Connector is not available for booking"
+                );
+        }
+        }
+
+        /**
+         * Checks booking conflicts, including the transition buffer.
+         */
+        private boolean hasBookingConflict(
+                Long connectorId,
+                LocalDateTime newStart,
+                LocalDateTime newEnd,
+                LocalDateTime now) {
+
+        List<Booking> existingBookings =
+                bookingRepository.findAllByConnector_Id(
+                        connectorId
+                );
+
+        for (Booking existingBooking : existingBookings) {
+
+                BookingStatus status =
+                        existingBooking.getStatus();
+
+                if (status != BookingStatus.PENDING
+                        && status != BookingStatus.CONFIRMED) {
+
+                continue;
+                }
+
+                if (status == BookingStatus.PENDING) {
+
+                LocalDateTime expiresAt =
+                        existingBooking.getPaymentExpiresAt();
+
+                if (expiresAt == null
+                        || !expiresAt.isAfter(now)) {
+
+                        continue;
+                }
+                }
+
+                LocalDateTime blockedStart =
+                        existingBooking.getStartTime()
+                                .minusMinutes(
+                                        BOOKING_BUFFER_MINUTES
+                                );
+
+                LocalDateTime blockedEnd =
+                        existingBooking.getEndTime()
+                                .plusMinutes(
+                                        BOOKING_BUFFER_MINUTES
+                                );
+
+                if (newStart.isBefore(blockedEnd)
+                        && newEnd.isAfter(blockedStart)) {
+
+                return true;
+                }
+        }
+
+        return false;
+        }
+
+        /**
+         * Retrieves the configured charger price.
+         */
+        private BigDecimal getBookingPricePerKwh(
+                Connector connector) {
+
         String chargerType =
                 connector.getCharger().getChargerType();
 
-        // 5. Find pricing for charger type
         ChargerPricing pricing =
-                chargerPricingRepository.findByChargerType(chargerType)
+                chargerPricingRepository
+                        .findByChargerType(chargerType)
                         .orElseThrow(() ->
                                 new RuntimeException(
                                         "Pricing not configured for charger type: "
@@ -142,68 +234,22 @@ public class BookingService {
                                 )
                         );
 
-        BigDecimal pricePerKwh =
-                pricing.getPricePerKwh();
-
-        // 6. Check existing bookings for this connector
-        List<Booking> existingBookings =
-        bookingRepository.findAllByConnector_Id(connector.getId());
-
-        LocalDateTime newStart = request.getStartTime();
-
-        LocalDateTime newEnd = request.getEndTime();
-
-        // 7. Check overlap + 15 minute buffer
-        for (Booking existingBooking : existingBookings) {
-
-            // Different connector → ignore
-            if (!existingBooking.getConnector()
-                    .getId()
-                    .equals(connector.getId())) {
-
-                continue;
-            }
-
-            // Only PENDING and CONFIRMED bookings can block the connector
-                if (existingBooking.getStatus() != BookingStatus.PENDING &&
-                        existingBooking.getStatus() != BookingStatus.CONFIRMED) {
-                continue;
-                }
-
-                // PENDING booking blocks only while payment is valid
-                if (existingBooking.getStatus() == BookingStatus.PENDING) {
-                if (existingBooking.getPaymentExpiresAt() == null ||
-                        !existingBooking.getPaymentExpiresAt().isAfter(now)) {
-                        continue;
-                }
-                }
-
-        LocalDateTime blockedStart =
-                    existingBooking.getStartTime()
-                            .minusMinutes(BOOKING_BUFFER_MINUTES);
-
-        LocalDateTime blockedEnd =
-                    existingBooking.getEndTime()
-                            .plusMinutes(BOOKING_BUFFER_MINUTES);
-
-        boolean conflict =
-                    newStart.isBefore(blockedEnd)
-                            && newEnd.isAfter(blockedStart);
-
-            if (conflict) {
-
-                throw new BookingException(
-                        "Connector is already booked for the selected time. "
-                                + "A 15-minute transition buffer is required."
-                );
-            }
+        return pricing.getPricePerKwh();
         }
 
-        /*
-         * 8. Calculate booking duration
+        /**
+         * Calculates authoritative booking estimates.
          */
+        private BookingEstimate calculateBookingEstimate(
+                Connector connector,
+                LocalDateTime startTime,
+                LocalDateTime endTime) {
+
         long durationMinutes =
-                Duration.between(newStart, newEnd).toMinutes();
+                Duration.between(
+                        startTime,
+                        endTime
+                ).toMinutes();
 
         BigDecimal durationHours =
                 BigDecimal.valueOf(durationMinutes)
@@ -213,83 +259,246 @@ public class BookingService {
                                 RoundingMode.HALF_UP
                         );
 
-        /*
-         * 9. Estimate energy consumption
-         *
-         * Business assumption:
-         * 5 kWh per booking hour
-         */
+        BigDecimal pricePerKwh =
+                getBookingPricePerKwh(connector);
+
         BigDecimal estimatedEnergy =
                 durationHours.multiply(
                         ESTIMATED_KWH_PER_HOUR
                 );
 
-        /*
-         * 10. Calculate estimated amount
-         *
-         * Estimated Amount =
-         * Estimated Energy × Price Per kWh
-         */
         BigDecimal estimatedAmount =
                 estimatedEnergy.multiply(pricePerKwh)
-                        .setScale(2, RoundingMode.HALF_UP);
+                        .setScale(
+                                2,
+                                RoundingMode.HALF_UP
+                        );
 
-        /*
-         * 11. Calculate 20% advance
-         */
         BigDecimal advanceAmount =
                 estimatedAmount.multiply(
-                                ADVANCE_PERCENTAGE
-                        )
-                        .setScale(2, RoundingMode.HALF_UP);
+                        ADVANCE_PERCENTAGE
+                ).setScale(
+                        2,
+                        RoundingMode.HALF_UP
+                );
 
-        /*
-         * 12. Create booking
+        return new BookingEstimate(
+                durationMinutes,
+                pricePerKwh,
+                estimatedEnergy,
+                estimatedAmount,
+                advanceAmount
+        );
+        }
+
+        /**
+         * Internal calculation result shared by booking operations.
          */
+        private record BookingEstimate(
+                long durationMinutes,
+                BigDecimal pricePerKwh,
+                BigDecimal estimatedEnergy,
+                BigDecimal estimatedAmount,
+                BigDecimal advanceAmount
+        ) {
+        }
+
+        /**
+         * Checks slot availability and calculates booking
+         * estimates without creating or reserving a booking.
+         */
+        @Transactional(readOnly = true)
+        public BookingPreviewResponse previewBooking(
+                BookingRequest request) {
+
+        // 1. Verify authenticated user.
+        getCurrentUser();
+
+        LocalDateTime now = LocalDateTime.now();
+
+        // 2. Validate requested time and duration.
+        validateBookingTime(request, now);
+
+        // 3. Retrieve the selected connector.
+        Connector connector =
+                connectorRepository.findById(
+                        request.getConnectorId()
+                ).orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Connector not found"
+                        )
+                );
+
+        // 4. Validate supported connector status.
+        validateConnectorStatus(connector);
+
+        LocalDateTime startTime = request.getStartTime();
+        LocalDateTime endTime = request.getEndTime();
+
+        // 5. Prepare the preview response.
+        BookingPreviewResponse response =
+                new BookingPreviewResponse();
+
+        response.setConnectorId(connector.getId());
+        response.setStartTime(startTime);
+        response.setEndTime(endTime);
+
+        response.setDurationMinutes(
+                Duration.between(
+                        startTime,
+                        endTime
+                ).toMinutes()
+        );
+
+        // 6. Check existing booking conflicts.
+        if (hasBookingConflict(
+                connector.getId(),
+                startTime,
+                endTime,
+                now)) {
+
+                response.setAvailable(false);
+
+                response.setMessage(
+                        "Selected slot is unavailable. "
+                                + "Please select another time slot. "
+                                + "A 15-minute transition buffer is required."
+                );
+
+                return response;
+        }
+
+        // 7. Calculate server-authoritative estimates.
+        BookingEstimate estimate =
+                calculateBookingEstimate(
+                        connector,
+                        startTime,
+                        endTime
+                );
+
+        response.setAvailable(true);
+
+        response.setDurationMinutes(
+                estimate.durationMinutes()
+        );
+
+        response.setPricePerKwh(
+                estimate.pricePerKwh()
+        );
+
+        response.setEstimatedEnergy(
+                estimate.estimatedEnergy()
+        );
+
+        response.setEstimatedAmount(
+                estimate.estimatedAmount()
+        );
+
+        response.setAdvanceAmount(
+                estimate.advanceAmount()
+        );
+
+        response.setMessage(
+                "Selected slot is available"
+        );
+
+        return response;
+        }
+
+        /**
+         * Creates a pending booking after validating the
+         * requested slot under a pessimistic connector lock.
+         */
+        @Transactional(isolation = Isolation.READ_COMMITTED)
+        public Booking createBooking(BookingRequest request) {
+
+        // 1. Retrieve the authenticated user.
+        User user = getCurrentUser();
+
+        // 2. Lock the selected connector.
+        Connector connector =
+                connectorRepository.findByIdForUpdate(
+                        request.getConnectorId()
+                ).orElseThrow(() ->
+                        new ResourceNotFoundException(
+                                "Connector not found"
+                        )
+                );
+
+        LocalDateTime now = LocalDateTime.now();
+
+        // 3. Validate booking time and duration.
+        validateBookingTime(request, now);
+
+        // 4. Validate supported connector status.
+        validateConnectorStatus(connector);
+
+        LocalDateTime newStart = request.getStartTime();
+        LocalDateTime newEnd = request.getEndTime();
+
+        // 5. Recheck availability while holding the lock.
+        if (hasBookingConflict(
+                connector.getId(),
+                newStart,
+                newEnd,
+                now)) {
+
+                throw new BookingException(
+                        "Connector is already booked for the selected time. "
+                                + "A 15-minute transition buffer is required."
+                );
+        }
+
+        // 6. Calculate server-authoritative amounts.
+        BookingEstimate estimate =
+                calculateBookingEstimate(
+                        connector,
+                        newStart,
+                        newEnd
+                );
+
+        // 7. Create the pending booking.
         Booking booking = new Booking();
 
         booking.setUser(user);
         booking.setConnector(connector);
+
         booking.setStartTime(newStart);
         booking.setEndTime(newEnd);
 
-        booking.setEstimatedAmount(estimatedAmount);
-        booking.setAdvanceAmount(advanceAmount);
+        booking.setEstimatedAmount(
+                estimate.estimatedAmount()
+        );
 
-        /*
-         * Final amount is not known at booking time.
-         */
+        booking.setAdvanceAmount(
+                estimate.advanceAmount()
+        );
+
         booking.setFinalAmount(null);
 
-        /*
-         * Payment is pending until payment is completed.
-         */
-        booking.setPaymentStatus(PaymentStatus.PENDING);
+        booking.setPaymentStatus(
+                PaymentStatus.PENDING
+        );
 
-        /*
-         * Booking is pending until advance payment succeeds.
-         */
-        booking.setStatus(BookingStatus.PENDING);
+        booking.setStatus(
+                BookingStatus.PENDING
+        );
 
-        /*
-         * Customer gets 15 minutes to complete payment.
-         */
         booking.setPaymentExpiresAt(
                 now.plusMinutes(PAYMENT_EXPIRY_MINUTES)
         );
 
-        /*
-         * Cancellation values are initially zero/null.
-         */
-        booking.setCancellationCharge(BigDecimal.ZERO);
-        booking.setRefundAmount(BigDecimal.ZERO);
+        booking.setCancellationCharge(
+                BigDecimal.ZERO
+        );
 
-        /*
-         * 13. Save booking
-         */
+        booking.setRefundAmount(
+                BigDecimal.ZERO
+        );
+
+        // 8. Persist the booking.
         return bookingRepository.save(booking);
         }
-
 
         public Booking cancelBooking(
                 Long bookingId,
@@ -372,8 +581,6 @@ public class BookingService {
                         Duration.between(now, booking.getStartTime());
 
                 BigDecimal chargePercentage;
-
-
 
                 /*
                 * More than 8 hours
